@@ -1,0 +1,352 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: PramaanX enterprise operations API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: dashboard
+    description: Operations command center
+  - name: documents
+    description: Document verification
+  - name: workforce
+    description: Workforce credentials and compliance
+  - name: assets
+    description: Asset custody and telemetry
+  - name: activity
+    description: Audit and activity feed
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get command center summary
+      responses:
+        "200":
+          description: Command center metrics and operational insights
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /documents:
+    get:
+      operationId: listDocuments
+      tags: [documents]
+      summary: List verification documents
+      parameters:
+        - $ref: "#/components/parameters/StatusQuery"
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by document, subject, or issuer
+      responses:
+        "200":
+          description: Verification queue
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Document"
+  /documents/{id}:
+    get:
+      operationId: getDocument
+      tags: [documents]
+      summary: Get a verification document
+      parameters:
+        - $ref: "#/components/parameters/DocumentId"
+      responses:
+        "200":
+          description: Document verification detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentDetail"
+        "404":
+          description: Document not found
+  /documents/{id}/verify:
+    post:
+      operationId: verifyDocument
+      tags: [documents]
+      summary: Run document verification
+      parameters:
+        - $ref: "#/components/parameters/DocumentId"
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationResult"
+        "404":
+          description: Document not found
+  /documents/upload:
+    post:
+      operationId: uploadDocument
+      tags: [documents]
+      summary: Add a document to the verification queue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentUploadInput"
+      responses:
+        "201":
+          description: Document added to the queue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+  /workforce:
+    get:
+      operationId: listWorkforce
+      tags: [workforce]
+      summary: List workforce members
+      parameters:
+        - $ref: "#/components/parameters/StatusQuery"
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by name, role, or organization
+      responses:
+        "200":
+          description: Workforce members and credential status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkforceMember"
+  /assets:
+    get:
+      operationId: listAssets
+      tags: [assets]
+      summary: List tracked assets
+      responses:
+        "200":
+          description: Assets with latest custody state
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Asset"
+  /activity:
+    get:
+      operationId: listActivity
+      tags: [activity]
+      summary: List recent audit activity
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        "200":
+          description: Recent platform activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+components:
+  parameters:
+    DocumentId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    StatusQuery:
+      name: status
+      in: query
+      required: false
+      schema:
+        type: string
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    DashboardSummary:
+      type: object
+      required: [verification, workforce, assets, risk, processingTrend]
+      properties:
+        verification:
+          $ref: "#/components/schemas/VerificationSummary"
+        workforce:
+          $ref: "#/components/schemas/WorkforceSummary"
+        assets:
+          $ref: "#/components/schemas/AssetSummary"
+        risk:
+          $ref: "#/components/schemas/RiskSummary"
+        processingTrend:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrendPoint"
+    VerificationSummary:
+      type: object
+      required: [total, verified, pending, flagged, averageTimeSeconds]
+      properties:
+        total: { type: number }
+        verified: { type: number }
+        pending: { type: number }
+        flagged: { type: number }
+        averageTimeSeconds: { type: number }
+    WorkforceSummary:
+      type: object
+      required: [total, active, expiringSoon, complianceRate]
+      properties:
+        total: { type: number }
+        active: { type: number }
+        expiringSoon: { type: number }
+        complianceRate: { type: number }
+    AssetSummary:
+      type: object
+      required: [total, inTransit, secure, attention]
+      properties:
+        total: { type: number }
+        inTransit: { type: number }
+        secure: { type: number }
+        attention: { type: number }
+    RiskSummary:
+      type: object
+      required: [trustScore, change, openAlerts, severity]
+      properties:
+        trustScore: { type: number }
+        change: { type: number }
+        openAlerts: { type: number }
+        severity: { type: string }
+    TrendPoint:
+      type: object
+      required: [label, verified, flagged]
+      properties:
+        label: { type: string }
+        verified: { type: number }
+        flagged: { type: number }
+    Document:
+      type: object
+      required: [id, name, type, subject, issuer, status, trustScore, submittedAt, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        type: { type: string }
+        subject: { type: string }
+        issuer: { type: string }
+        status: { type: string }
+        trustScore: { type: number }
+        submittedAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    DocumentDetail:
+      allOf:
+        - $ref: "#/components/schemas/Document"
+        - type: object
+          required: [fields, signals, timeline]
+          properties:
+            fields:
+              type: array
+              items:
+                $ref: "#/components/schemas/ExtractedField"
+            signals:
+              type: array
+              items:
+                $ref: "#/components/schemas/RiskSignal"
+            timeline:
+              type: array
+              items:
+                $ref: "#/components/schemas/ActivityItem"
+    ExtractedField:
+      type: object
+      required: [label, value, confidence]
+      properties:
+        label: { type: string }
+        value: { type: string }
+        confidence: { type: number }
+    RiskSignal:
+      type: object
+      required: [label, value, severity]
+      properties:
+        label: { type: string }
+        value: { type: string }
+        severity: { type: string }
+    VerificationResult:
+      type: object
+      required: [document, decision, trustScore, checkedAt]
+      properties:
+        document:
+          $ref: "#/components/schemas/Document"
+        decision: { type: string }
+        trustScore: { type: number }
+        checkedAt: { type: string, format: date-time }
+    DocumentUploadInput:
+      type: object
+      required: [name, type, subject, issuer]
+      properties:
+        name: { type: string, minLength: 1 }
+        type: { type: string, minLength: 1 }
+        subject: { type: string, minLength: 1 }
+        issuer: { type: string, minLength: 1 }
+    WorkforceMember:
+      type: object
+      required: [id, name, role, organization, status, trustScore, credentials, lastVerified]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        role: { type: string }
+        organization: { type: string }
+        status: { type: string }
+        trustScore: { type: number }
+        credentials: { type: number }
+        lastVerified: { type: string, format: date-time }
+    Asset:
+      type: object
+      required: [id, name, category, location, custodyStatus, trustScore, lastSeen]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        category: { type: string }
+        location: { type: string }
+        custodyStatus: { type: string }
+        trustScore: { type: number }
+        lastSeen: { type: string, format: date-time }
+    ActivityItem:
+      type: object
+      required: [id, title, description, type, actor, createdAt]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string }
+        type: { type: string }
+        actor: { type: string }
+        createdAt: { type: string, format: date-time }
