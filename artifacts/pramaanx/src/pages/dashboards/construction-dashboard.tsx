@@ -11,18 +11,23 @@ import {
   Zap,
 } from 'lucide-react';
 import { GPSTrackingCard } from '@/components/common-modules';
+import { useAuth } from '@/lib/auth-context';
+import { getISTGreeting } from '@/App';
 
 export default function ConstructionDashboard() {
+  const { user } = useAuth();
+  const { greeting, dateFormatted } = getISTGreeting(user?.name || 'Vikram Malhotra');
+
   return (
     <div className="space-y-7 rise-in">
       {/* Header Banner */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <div className="mono mb-2 text-[10px] font-medium uppercase tracking-[.19em] text-amber-600 flex items-center gap-2">
-            <HardHat className="size-3.5" /> Construction & Field Operations Sector
+            <HardHat className="size-3.5" /> Construction & Field Operations Sector · {dateFormatted}
           </div>
           <h1 className="text-[27px] font-extrabold tracking-[-.04em] text-foreground sm:text-[31px]">
-            Field Safety & Site Custody Command
+            {greeting}
           </h1>
           <p className="mt-1.5 max-w-2xl text-[12px] text-muted-foreground">
             Real-time biometric attendance, site risk mapping, safety certificate tracking, and heavy machinery utilization.

@@ -16,18 +16,23 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { WorkforceStressMonitorCard, GPSTrackingCard } from '@/components/common-modules';
+import { useAuth } from '@/lib/auth-context';
+import { getISTGreeting } from '@/App';
 
 export default function ITDashboard() {
+  const { user } = useAuth();
+  const { greeting, dateFormatted } = getISTGreeting(user?.name || 'Rahul Verma');
+
   return (
     <div className="space-y-7 rise-in">
       {/* Header Banner */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <div className="mono mb-2 text-[10px] font-medium uppercase tracking-[.19em] text-[hsl(var(--primary))] flex items-center gap-2">
-            <Cpu className="size-3.5 text-[hsl(var(--accent))]" /> IT & Software Sector Command Center
+            <Cpu className="size-3.5 text-[hsl(var(--accent))]" /> IT & Software Sector Command Center · {dateFormatted}
           </div>
           <h1 className="text-[27px] font-extrabold tracking-[-.04em] text-foreground sm:text-[31px]">
-            Engineering & Software Intelligence
+            {greeting}
           </h1>
           <p className="mt-1.5 max-w-2xl text-[12px] text-muted-foreground">
             Live tracking for developer credentials, software license compliance, laptop custody, and burnout risk.

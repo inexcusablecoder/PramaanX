@@ -28,15 +28,49 @@ const inMemoryCompanies: PramaanxCompany[] = [
   },
 ];
 
-const inMemoryUsers: PramaanxUser[] = [
+const inMemoryUsers: Array<PramaanxUser & { allowedSector?: string }> = [
   {
-    id: "user-demo-01",
+    id: "user-shreyash",
     companyId: "comp-demo-01",
-    name: "Ari Raghavan",
-    email: "ari@pramaanx.io",
+    name: "SHREYASH",
+    email: "shreyash@pramaanx.io",
     password: "password123",
-    role: "CEO / Executive",
-    department: "Operations",
+    role: "Super Admin / Control Room Lead",
+    department: "Executive Command",
+    allowedSector: "all",
+    createdAt: new Date("2026-09-01T00:00:00.000Z"),
+  },
+  {
+    id: "user-it",
+    companyId: "comp-demo-01",
+    name: "Rahul Verma",
+    email: "it@pramaanx.io",
+    password: "password123",
+    role: "IT & Software Sector Lead",
+    department: "Software Engineering",
+    allowedSector: "it",
+    createdAt: new Date("2026-09-01T00:00:00.000Z"),
+  },
+  {
+    id: "user-construction",
+    companyId: "comp-demo-01",
+    name: "Vikram Malhotra",
+    email: "field@pramaanx.io",
+    password: "password123",
+    role: "Construction & Field Ops Lead",
+    department: "Field Operations",
+    allowedSector: "construction",
+    createdAt: new Date("2026-09-01T00:00:00.000Z"),
+  },
+  {
+    id: "user-medical",
+    companyId: "comp-demo-01",
+    name: "Dr. Ananya Roy",
+    email: "medical@pramaanx.io",
+    password: "password123",
+    role: "Healthcare & Medical Director",
+    department: "Medical Operations",
+    allowedSector: "medical",
     createdAt: new Date("2026-09-01T00:00:00.000Z"),
   },
 ];
@@ -99,7 +133,7 @@ router.post("/register", async (req, res): Promise<void> => {
     } catch (_dbErr) {
       // Memory store fallback
       inMemoryCompanies.push(companyRecord);
-      inMemoryUsers.push(userRecord);
+      inMemoryUsers.push({ ...userRecord, allowedSector: "all" });
     }
 
     const token = `px-token-${randomUUID()}`;
@@ -166,18 +200,25 @@ router.post("/login", async (req, res): Promise<void> => {
 
     const token = `px-token-${randomUUID()}`;
 
+    const userPayload = {
+      id: foundUser.id,
+      name: foundUser.name,
+      email: email || foundUser.email,
+      role: foundUser.role,
+      department: foundUser.department,
+      companyId: foundUser.companyId,
+      allowedSector: (foundUser as any).allowedSector || (
+        email?.includes('it') ? 'it' :
+        email?.includes('field') || email?.includes('construction') ? 'construction' :
+        email?.includes('med') ? 'medical' : 'all'
+      ),
+    };
+
     res.json({
       success: true,
       token,
       company: foundCompany || inMemoryCompanies[0],
-      user: {
-        id: foundUser.id,
-        name: foundUser.name,
-        email: email || foundUser.email,
-        role: foundUser.role,
-        department: foundUser.department,
-        companyId: foundUser.companyId,
-      },
+      user: userPayload,
     });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || "Authentication failed" });
@@ -193,6 +234,7 @@ router.get("/me", async (_req, res): Promise<void> => {
       role: inMemoryUsers[0].role,
       department: inMemoryUsers[0].department,
       companyId: inMemoryUsers[0].companyId,
+      allowedSector: inMemoryUsers[0].allowedSector,
     },
     company: inMemoryCompanies[0],
   });

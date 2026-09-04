@@ -7,6 +7,7 @@ export interface User {
   role: string;
   department: string;
   companyId: string;
+  allowedSector?: 'all' | 'it' | 'construction' | 'medical';
 }
 
 export interface Company {
@@ -71,24 +72,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return false;
     } catch (_err) {
       // Offline fallback login for demo
-      const demoUser: User = {
-        id: 'user-demo-01',
-        name: 'Ari Raghavan',
-        email: email || 'ari@pramaanx.io',
-        role: 'CEO / Executive',
-        department: 'Operations',
-        companyId: 'comp-demo-01',
-      };
+      const lower = email.toLowerCase();
+      let demoUser: User;
+      if (lower.includes('it')) {
+        demoUser = {
+          id: 'user-it',
+          name: 'Rahul Verma',
+          email: email || 'it@pramaanx.io',
+          role: 'IT & Software Sector Lead',
+          department: 'Software Engineering',
+          companyId: 'comp-demo-01',
+          allowedSector: 'it',
+        };
+      } else if (lower.includes('field') || lower.includes('construction')) {
+        demoUser = {
+          id: 'user-construction',
+          name: 'Vikram Malhotra',
+          email: email || 'field@pramaanx.io',
+          role: 'Construction Ops Lead',
+          department: 'Field Operations',
+          companyId: 'comp-demo-01',
+          allowedSector: 'construction',
+        };
+      } else if (lower.includes('med')) {
+        demoUser = {
+          id: 'user-medical',
+          name: 'Dr. Ananya Roy',
+          email: email || 'medical@pramaanx.io',
+          role: 'Healthcare & Medical Director',
+          department: 'Medical Operations',
+          companyId: 'comp-demo-01',
+          allowedSector: 'medical',
+        };
+      } else {
+        demoUser = {
+          id: 'user-shreyash',
+          name: 'SHREYASH',
+          email: email || 'shreyash@pramaanx.io',
+          role: 'Super Admin / Control Room Lead',
+          department: 'Executive Command',
+          companyId: 'comp-demo-01',
+          allowedSector: 'all',
+        };
+      }
+
       const demoComp: Company = {
         id: 'comp-demo-01',
-        name: 'Acme Cybernetics Ltd.',
-        email: email || 'admin@acmecybernetics.com',
+        name: 'PramaanX Enterprise Operations',
+        email: email || 'admin@pramaanx.io',
         size: '51-200 Employees',
-        industry: 'IT & Software',
-        businessType: 'Software Development',
-        departments: 'HR, Operations, Engineering',
-        branches: 'Headquarters',
-        capacity: 250,
+        industry: 'Multi-Sector Control',
+        businessType: 'Enterprise Intelligence',
+        departments: 'HR, Operations, Engineering, Medical',
+        branches: 'Global HQ',
+        capacity: 500,
         verificationStatus: 'verified',
       };
       setUser(demoUser);

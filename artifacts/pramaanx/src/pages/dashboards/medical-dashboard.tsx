@@ -11,18 +11,23 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { WorkforceStressMonitorCard } from '@/components/common-modules';
+import { useAuth } from '@/lib/auth-context';
+import { getISTGreeting } from '@/App';
 
 export default function MedicalDashboard() {
+  const { user } = useAuth();
+  const { greeting, dateFormatted } = getISTGreeting(user?.name || 'Dr. Ananya Roy');
+
   return (
     <div className="space-y-7 rise-in">
       {/* Header Banner */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <div className="mono mb-2 text-[10px] font-medium uppercase tracking-[.19em] text-rose-600 flex items-center gap-2">
-            <HeartPulse className="size-3.5" /> Healthcare & Medical Sector Command Center
+            <HeartPulse className="size-3.5" /> Healthcare & Medical Sector Command Center · {dateFormatted}
           </div>
           <h1 className="text-[27px] font-extrabold tracking-[-.04em] text-foreground sm:text-[31px]">
-            Clinical Staffing & Medical License Assurance
+            {greeting}
           </h1>
           <p className="mt-1.5 max-w-2xl text-[12px] text-muted-foreground">
             Live monitoring for doctors & nurses on duty, bed availability, medical license validity, and staff burnout.

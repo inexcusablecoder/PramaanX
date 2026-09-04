@@ -19,7 +19,11 @@ export default function Login() {
     const success = await login(email, password);
     setLoading(false);
     if (success) {
-      setLocation('/');
+      const lower = email.toLowerCase();
+      if (lower.includes('it')) setLocation('/dashboard/it');
+      else if (lower.includes('field') || lower.includes('construction')) setLocation('/dashboard/construction');
+      else if (lower.includes('med')) setLocation('/dashboard/medical');
+      else setLocation('/');
     } else {
       setErrorMsg('Invalid credentials. Please try again.');
     }
@@ -39,8 +43,8 @@ export default function Login() {
       {/* Main Container */}
       <div className="relative z-10 w-full max-w-md">
         {/* Header Branding */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-3 mb-3">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center gap-3 mb-2">
             <span className="relative grid size-10 place-items-center rounded-xl bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] shadow-md">
               <span className="absolute size-6 rounded-md border-2 border-current rotate-45" />
               <span className="relative size-2 rounded-full bg-current" />
@@ -55,9 +59,77 @@ export default function Login() {
         </div>
 
         {/* Card Frame */}
-        <div className="rounded-2xl border border-white/10 bg-white/[.035] backdrop-blur-xl p-7 shadow-2xl">
+        <div className="rounded-2xl border border-white/10 bg-white/[.035] backdrop-blur-xl p-6 shadow-2xl">
+          {/* Sector Quick Login Options */}
+          <div className="mb-5">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2.5 text-center">
+              Quick Role / Sector Login
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  setEmail('shreyash@pramaanx.io');
+                  setPassword('password123');
+                  const ok = await login('shreyash@pramaanx.io', 'password123');
+                  if (ok) setLocation('/');
+                }}
+                className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-left hover:bg-amber-500/20 transition-all"
+                data-testid="login-sector-admin"
+              >
+                <div className="text-[11px] font-extrabold text-amber-400">SHREYASH (Admin)</div>
+                <div className="text-[9px] text-slate-400">Control Room / Executive</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  setEmail('it@pramaanx.io');
+                  setPassword('password123');
+                  const ok = await login('it@pramaanx.io', 'password123');
+                  if (ok) setLocation('/dashboard/it');
+                }}
+                className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-left hover:bg-blue-500/20 transition-all"
+                data-testid="login-sector-it"
+              >
+                <div className="text-[11px] font-extrabold text-blue-400">IT & Software</div>
+                <div className="text-[9px] text-slate-400">Software Sector Portal</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  setEmail('field@pramaanx.io');
+                  setPassword('password123');
+                  const ok = await login('field@pramaanx.io', 'password123');
+                  if (ok) setLocation('/dashboard/construction');
+                }}
+                className="p-2.5 rounded-xl bg-amber-600/10 border border-amber-600/30 text-left hover:bg-amber-600/20 transition-all"
+                data-testid="login-sector-construction"
+              >
+                <div className="text-[11px] font-extrabold text-amber-500">Construction / Field</div>
+                <div className="text-[9px] text-slate-400">Field Operations Portal</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  setEmail('medical@pramaanx.io');
+                  setPassword('password123');
+                  const ok = await login('medical@pramaanx.io', 'password123');
+                  if (ok) setLocation('/dashboard/medical');
+                }}
+                className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-left hover:bg-rose-500/20 transition-all"
+                data-testid="login-sector-medical"
+              >
+                <div className="text-[11px] font-extrabold text-rose-400">Healthcare / Medical</div>
+                <div className="text-[9px] text-slate-400">Medical Director Portal</div>
+              </button>
+            </div>
+          </div>
+
           {/* Auth Mode Tabs */}
-          <div className="grid grid-cols-2 gap-1 p-1 mb-6 rounded-xl bg-white/[.06] border border-white/10">
+          <div className="grid grid-cols-2 gap-1 p-1 mb-5 rounded-xl bg-white/[.06] border border-white/10">
             <button
               onClick={() => setTab('login')}
               className={`py-2 text-xs font-bold rounded-lg transition-all ${

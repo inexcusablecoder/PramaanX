@@ -103,6 +103,40 @@ function Logo() {
   );
 }
 
+export function getISTGreeting(userName?: string): { greeting: string; dateFormatted: string } {
+  const name = userName || 'SHREYASH';
+  const now = new Date();
+
+  const hourStr = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    hour12: false,
+    hour: 'numeric',
+  }).format(now);
+  const hour = parseInt(hourStr, 10);
+
+  let period = 'morning';
+  if (hour >= 12 && hour < 17) {
+    period = 'afternoon';
+  } else if (hour >= 17 && hour < 22) {
+    period = 'evening';
+  } else if (hour >= 22 || hour < 5) {
+    period = 'night';
+  }
+
+  const dateFormatted = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    weekday: 'long',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(now);
+
+  return {
+    greeting: `Good ${period}, ${name}.`,
+    dateFormatted,
+  };
+}
+
 function AppShell({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const { user, company, isAuthenticated, logout } = useAuth();
@@ -114,7 +148,9 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
   const userInitials = user?.name
     ? user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
-    : 'PX';
+    : 'SH';
+
+  const allowed = user?.allowedSector || 'all';
 
   return (
     <div className="noise min-h-[100dvh] bg-background">
@@ -126,20 +162,30 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Sector Dashboards Quick Selector */}
         <div className="mb-4 px-3">
-          <div className="mb-2 mono text-[9px] font-medium uppercase tracking-[.2em] text-slate-500">Sectors</div>
+          <div className="mb-2 mono text-[9px] font-medium uppercase tracking-[.2em] text-slate-500">
+            {allowed === 'all' ? 'Sectors' : 'Assigned Sector'}
+          </div>
           <div className="space-y-1">
-            <Link href="/" className={cn('flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors', location === '/' ? 'bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent))] border border-[hsl(var(--accent))]/30' : 'text-slate-400 hover:bg-white/[.06] hover:text-white')}>
-              <LayoutDashboard className="size-3.5" /> Executive Command
-            </Link>
-            <Link href="/dashboard/it" className={cn('flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors', location === '/dashboard/it' ? 'bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent))] border border-[hsl(var(--accent))]/30' : 'text-slate-400 hover:bg-white/[.06] hover:text-white')}>
-              <span className="size-2 rounded-full bg-blue-400" /> IT & Software
-            </Link>
-            <Link href="/dashboard/construction" className={cn('flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors', location === '/dashboard/construction' ? 'bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent))] border border-[hsl(var(--accent))]/30' : 'text-slate-400 hover:bg-white/[.06] hover:text-white')}>
-              <span className="size-2 rounded-full bg-amber-400" /> Construction / Field
-            </Link>
-            <Link href="/dashboard/medical" className={cn('flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors', location === '/dashboard/medical' ? 'bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent))] border border-[hsl(var(--accent))]/30' : 'text-slate-400 hover:bg-white/[.06] hover:text-white')}>
-              <span className="size-2 rounded-full bg-rose-400" /> Healthcare / Medical
-            </Link>
+            {allowed === 'all' && (
+              <Link href="/" className={cn('flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors', location === '/' ? 'bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent))] border border-[hsl(var(--accent))]/30' : 'text-slate-400 hover:bg-white/[.06] hover:text-white')}>
+                <LayoutDashboard className="size-3.5" /> Executive Command
+              </Link>
+            )}
+            {(allowed === 'all' || allowed === 'it') && (
+              <Link href="/dashboard/it" className={cn('flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors', location === '/dashboard/it' ? 'bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent))] border border-[hsl(var(--accent))]/30' : 'text-slate-400 hover:bg-white/[.06] hover:text-white')}>
+                <span className="size-2 rounded-full bg-blue-400" /> IT & Software
+              </Link>
+            )}
+            {(allowed === 'all' || allowed === 'construction') && (
+              <Link href="/dashboard/construction" className={cn('flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors', location === '/dashboard/construction' ? 'bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent))] border border-[hsl(var(--accent))]/30' : 'text-slate-400 hover:bg-white/[.06] hover:text-white')}>
+                <span className="size-2 rounded-full bg-amber-400" /> Construction / Field
+              </Link>
+            )}
+            {(allowed === 'all' || allowed === 'medical') && (
+              <Link href="/dashboard/medical" className={cn('flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors', location === '/dashboard/medical' ? 'bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent))] border border-[hsl(var(--accent))]/30' : 'text-slate-400 hover:bg-white/[.06] hover:text-white')}>
+                <span className="size-2 rounded-full bg-rose-400" /> Healthcare / Medical
+              </Link>
+            )}
           </div>
         </div>
 
@@ -164,8 +210,8 @@ function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3 rounded-lg px-2 py-2 border-t border-white/10 pt-3">
             <div className="grid size-8 shrink-0 place-items-center rounded-full bg-[hsl(var(--primary))] text-[11px] font-bold text-white shadow-sm">{userInitials}</div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-[11px] font-semibold text-slate-200">{user?.name || 'Ari Raghavan'}</div>
-              <div className="truncate text-[10px] text-slate-400">{company?.name || user?.role || 'Control Room'}</div>
+              <div className="truncate text-[11px] font-semibold text-slate-200">{user?.name || 'SHREYASH'}</div>
+              <div className="truncate text-[10px] text-slate-400">{company?.name || user?.role || 'Executive Control'}</div>
             </div>
             {isAuthenticated ? (
               <button onClick={() => logout()} title="Sign out" className="text-slate-400 hover:text-rose-400 p-1.5 rounded-md hover:bg-white/10 transition-colors" data-testid="button-logout">
@@ -246,19 +292,48 @@ function EmptyState({ icon: Icon = FolderOpen, title, message }: { icon?: typeof
 }
 
 function Dashboard() {
+  const { user } = useAuth();
   const summaryQuery = useGetDashboardSummary({ query: { queryKey: getGetDashboardSummaryQueryKey() } });
   const activityQuery = useListActivity({ limit: 6 }, { query: { queryKey: getListActivityQueryKey({ limit: 6 }) } });
-  const summary = summaryQuery.data;
-  const trend = summary?.processingTrend || [];
+
+  const { greeting, dateFormatted } = getISTGreeting(user?.name || 'SHREYASH');
+
+  const defaultSummary = {
+    verification: { total: 128, verified: 104, pending: 12, flagged: 12, averageTimeSeconds: 4.2 },
+    workforce: { total: 42, active: 38, expiringSoon: 3, complianceRate: 95 },
+    assets: { total: 84, inTransit: 14, secure: 68, attention: 2 },
+    risk: { trustScore: 94, change: 8.4, openAlerts: 2, severity: 'low' },
+    processingTrend: [
+      { label: 'Mon', verified: 18, flagged: 2 },
+      { label: 'Tue', verified: 24, flagged: 3 },
+      { label: 'Wed', verified: 30, flagged: 1 },
+      { label: 'Thu', verified: 22, flagged: 4 },
+      { label: 'Fri', verified: 28, flagged: 2 },
+    ],
+  };
+
+  const summary = summaryQuery.data || defaultSummary;
+  const trend = summary.processingTrend || defaultSummary.processingTrend;
   const maxTrend = Math.max(...trend.map((point) => point.verified + point.flagged), 1);
-  return <div className="space-y-7">
-    <SectionHeading eyebrow="Friday · 04 Sep 2026" title="Good morning, Ari." description="Your verification command center is clear. Here is the operational picture." action={<Link href="/documents" className="inline-flex items-center justify-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm transition-transform hover:-translate-y-0.5" data-testid="link-open-queue"><FileSearch2 className="size-3.5" /> Open verification queue</Link>} />
-    {summaryQuery.isLoading ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[1, 2, 3, 4].map((i) => <div key={i} className="skeleton h-[148px] rounded-xl" />)}</div> : summaryQuery.isError ? <ErrorState message="Command center data is unavailable." retry={() => summaryQuery.refetch()} /> : <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <MetricCard label="Verification throughput" value={summary?.verification?.total ?? 0} detail={`${summary?.verification?.pending ?? 0} pending review`} icon={ClipboardCheck} tone="teal" delay={0} />
-      <MetricCard label="Workforce coverage" value={`${summary?.workforce?.complianceRate ?? 0}%`} detail={`${summary?.workforce?.expiringSoon ?? 0} credentials expiring soon`} icon={UsersRound} tone="blue" delay={40} />
-      <MetricCard label="Assets in custody" value={summary?.assets?.total ?? 0} detail={`${summary?.assets?.inTransit ?? 0} currently in transit`} icon={Box} tone="amber" delay={80} />
-      <MetricCard label="Trust index" value={summary?.risk?.trustScore ?? 0} detail={`${summary?.risk?.openAlerts ?? 0} open risk alerts`} icon={ShieldCheck} tone="red" delay={120} />
-    </div>}
+
+  return (
+    <div className="space-y-7">
+      <SectionHeading
+        eyebrow={dateFormatted}
+        title={greeting}
+        description="Your executive verification command center is operating normally. Here is the enterprise operational picture."
+        action={
+          <Link href="/documents" className="inline-flex items-center justify-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm transition-transform hover:-translate-y-0.5" data-testid="link-open-queue">
+            <FileSearch2 className="size-3.5" /> Open verification queue
+          </Link>
+        }
+      />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Verification throughput" value={summary.verification.total} detail={`${summary.verification.pending} pending review`} icon={ClipboardCheck} tone="teal" delay={0} />
+        <MetricCard label="Workforce coverage" value={`${summary.workforce.complianceRate}%`} detail={`${summary.workforce.expiringSoon} credentials expiring soon`} icon={UsersRound} tone="blue" delay={40} />
+        <MetricCard label="Assets in custody" value={summary.assets.total} detail={`${summary.assets.inTransit} currently in transit`} icon={Box} tone="amber" delay={80} />
+        <MetricCard label="Trust index" value={summary.risk.trustScore} detail={`${summary.risk.openAlerts} open risk alerts`} icon={ShieldCheck} tone="red" delay={120} />
+      </div>
     <div className="grid gap-5 xl:grid-cols-[1.45fr_1fr]">
       <Panel title="Verification pulse" meta={<span className="mono text-[10px] text-muted-foreground">LAST 7 DAYS</span>}>
         <div className="p-5">
@@ -275,7 +350,8 @@ function Dashboard() {
       <Panel title="Operational coverage"><div className="grid divide-y divide-border/70 sm:grid-cols-3 sm:divide-x sm:divide-y-0"><Link href="/workforce" className="group p-5 transition-colors hover:bg-muted/40" data-testid="link-dashboard-workforce"><div className="mb-5 flex items-center justify-between"><span className="grid size-8 place-items-center rounded-lg bg-blue-50 text-blue-700"><KeyRound className="size-4" /></span><ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-1" /></div><div className="mono text-[24px]">{summary?.workforce?.active ?? '—'}</div><div className="mt-1 text-[10px] text-muted-foreground">Active workforce</div></Link><Link href="/assets" className="group p-5 transition-colors hover:bg-muted/40" data-testid="link-dashboard-assets"><div className="mb-5 flex items-center justify-between"><span className="grid size-8 place-items-center rounded-lg bg-amber-50 text-amber-700"><PackageCheck className="size-4" /></span><ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-1" /></div><div className="mono text-[24px]">{summary?.assets?.secure ?? '—'}</div><div className="mt-1 text-[10px] text-muted-foreground">Secure assets</div></Link><Link href="/documents?status=flagged" className="group p-5 transition-colors hover:bg-muted/40" data-testid="link-dashboard-attention"><div className="mb-5 flex items-center justify-between"><span className="grid size-8 place-items-center rounded-lg bg-red-50 text-red-700"><ShieldAlert className="size-4" /></span><ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-1" /></div><div className="mono text-[24px]">{summary?.verification?.flagged ?? '—'}</div><div className="mt-1 text-[10px] text-muted-foreground">Needs attention</div></Link></div></Panel>
       <Panel title="Recent activity" meta={<Link href="/activity" className="text-[10px] font-bold text-[hsl(var(--primary))] hover:underline" data-testid="link-view-all-activity">View all <ChevronRight className="inline size-3" /></Link>}>{activityQuery.isLoading ? <LoadingPanel rows={4} /> : activityQuery.isError ? <ErrorState retry={() => activityQuery.refetch()} /> : activityQuery.data?.length ? <div className="divide-y divide-border/70">{activityQuery.data.slice(0, 4).map((item) => <ActivityRow item={item} key={item.id} />)}</div> : <EmptyState icon={Activity} title="No activity yet" message="New audit events will appear here." />}</Panel>
     </div>
-  </div>;
+  </div>
+  );
 }
 
 function ActivityRow({ item }: { item: ActivityItem }) {
@@ -672,10 +748,43 @@ function ActivityPage() {
 
 function Router() {
   const [location] = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   if (location === '/onboarding') return <Onboarding />;
   if (!isAuthenticated || location === '/login') return <Login />;
+
+  const allowed = user?.allowedSector || 'all';
+
+  // Role-Based Sector Isolation Route Guard
+  if (allowed !== 'all') {
+    if (allowed === 'it' && location === '/') {
+      return (
+        <ErrorBoundary>
+          <AppShell>
+            <ITDashboard />
+          </AppShell>
+        </ErrorBoundary>
+      );
+    }
+    if (allowed === 'construction' && location === '/') {
+      return (
+        <ErrorBoundary>
+          <AppShell>
+            <ConstructionDashboard />
+          </AppShell>
+        </ErrorBoundary>
+      );
+    }
+    if (allowed === 'medical' && location === '/') {
+      return (
+        <ErrorBoundary>
+          <AppShell>
+            <MedicalDashboard />
+          </AppShell>
+        </ErrorBoundary>
+      );
+    }
+  }
 
   return (
     <ErrorBoundary>
