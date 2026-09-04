@@ -36,6 +36,12 @@ export const pramaanxWorkforceTable = pgTable("pramaanx_workforce", {
   trustScore: real("trust_score").notNull(),
   credentials: integer("credentials").notNull(),
   lastVerified: timestamp("last_verified", { withTimezone: true }).notNull(),
+  shiftHours: integer("shift_hours").notNull().default(8),
+  overtimeHours: integer("overtime_hours").notNull().default(0),
+  workloadTasks: integer("workload_tasks").notNull().default(3),
+  restBreakIndex: integer("rest_break_index").notNull().default(4),
+  stressScore: integer("stress_score").notNull().default(20),
+  stressLevel: text("stress_level").notNull().default("Optimal"),
 });
 
 export const pramaanxAssetsTable = pgTable("pramaanx_assets", {

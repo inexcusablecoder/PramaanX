@@ -118,6 +118,12 @@ export interface WorkforceMember {
   trustScore: number;
   credentials: number;
   lastVerified: string;
+  shiftHours?: number;
+  overtimeHours?: number;
+  workloadTasks?: number;
+  restBreakIndex?: number;
+  stressScore?: number;
+  stressLevel?: string;
 }
 
 export interface Asset {

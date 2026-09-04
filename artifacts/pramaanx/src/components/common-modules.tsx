@@ -155,31 +155,45 @@ export function AlertCenterDrawer({ isOpen, onClose }: { isOpen: boolean; onClos
   );
 }
 
+import { useListWorkforce, getListWorkforceQueryKey } from '@workspace/api-client-react';
+
 export function WorkforceStressMonitorCard() {
+  const workforceQuery = useListWorkforce({}, { query: { queryKey: getListWorkforceQueryKey({}) } });
+  const members = workforceQuery.data || [];
+
+  const avgStress = members.length
+    ? Math.round(members.reduce((acc, m) => acc + (m.stressScore ?? 20), 0) / members.length)
+    : 28;
+  const burnoutCount = members.filter((m) => (m.stressScore ?? 20) >= 70 || m.stressLevel === 'Burnout Risk').length;
+  const wellbeingScore = Math.max(0, 100 - avgStress);
+
+  const statusColor = avgStress > 60 ? 'bg-red-50 text-red-700 border-red-200' : avgStress > 35 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  const statusLabel = avgStress > 60 ? 'HIGH LOAD ALERT' : avgStress > 35 ? 'ELEVATED LOAD' : 'OPTIMAL BALANCE';
+
   return (
-    <div className="rounded-xl border border-card-border bg-card p-5 shadow-sm space-y-4">
+    <div className="rounded-xl border border-card-border bg-card p-5 shadow-sm space-y-4" data-testid="card-workforce-stress">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Heart className="size-4 text-rose-500" />
+          <Heart className="size-4 text-rose-500 animate-pulse" />
           <h3 className="text-xs font-bold text-foreground">Workforce Stress & Burnout Monitor</h3>
         </div>
-        <span className="mono text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-          HEALTHY (82/100)
+        <span className={`mono text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>
+          {statusLabel} ({wellbeingScore}/100)
         </span>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
         <div className="p-3 rounded-lg bg-muted/60 text-center">
-          <div className="mono text-lg font-bold text-foreground">14.2%</div>
-          <div className="text-[10px] text-muted-foreground">Stress Index</div>
+          <div className="mono text-lg font-bold text-foreground">{avgStress}%</div>
+          <div className="text-[10px] text-muted-foreground">Avg Stress Index</div>
         </div>
         <div className="p-3 rounded-lg bg-muted/60 text-center">
-          <div className="mono text-lg font-bold text-amber-600">3 Squads</div>
-          <div className="text-[10px] text-muted-foreground">High Load Risk</div>
+          <div className="mono text-lg font-bold text-amber-600">{burnoutCount} Members</div>
+          <div className="text-[10px] text-muted-foreground">High Burnout Risk</div>
         </div>
         <div className="p-3 rounded-lg bg-muted/60 text-center">
-          <div className="mono text-lg font-bold text-emerald-600">94.8%</div>
-          <div className="text-[10px] text-muted-foreground">Wellbeing Score</div>
+          <div className="mono text-lg font-bold text-emerald-600">{wellbeingScore}%</div>
+          <div className="text-[10px] text-muted-foreground">Wellbeing Index</div>
         </div>
       </div>
     </div>

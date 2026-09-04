@@ -18,7 +18,10 @@ import {
   FileSearch2,
   Filter,
   FolderOpen,
+  AlertTriangle,
+  Brain,
   Gauge,
+  Heart,
   KeyRound,
   LayoutDashboard,
   LogOut,
@@ -30,10 +33,12 @@ import {
   ShieldAlert,
   ShieldCheck,
   SlidersHorizontal,
+  Sparkles,
   TriangleAlert,
   Upload,
   UsersRound,
   X,
+  Zap,
 } from 'lucide-react';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import {
@@ -315,16 +320,331 @@ function DocumentDetailPage() {
   return <div className="space-y-7"><Link href="/documents" className="inline-flex items-center gap-2 text-[11px] font-bold text-muted-foreground hover:text-foreground" data-testid="link-back-documents"><ArrowLeft className="size-3.5" /> Back to verification queue</Link>{query.isLoading ? <div className="space-y-5"><div className="skeleton h-32 rounded-xl" /><div className="grid gap-5 lg:grid-cols-2"><div className="skeleton h-72 rounded-xl" /><div className="skeleton h-72 rounded-xl" /></div></div> : query.isError || !detail ? <ErrorState message="Document details are unavailable." retry={() => query.refetch()} /> : <><SectionHeading eyebrow={`Verification / ${detail.type}`} title={detail.name} description={`${detail.subject} · issued by ${detail.issuer}`} action={<div className="flex gap-2"><StatusBadge value={detail.status} /><button onClick={verifyNow} disabled={verify.isPending} className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-[11px] font-bold text-white disabled:opacity-60" data-testid="button-verify-document">{verify.isPending ? 'Running checks…' : <><ShieldCheck className="size-3.5" /> Verify now</>}</button></div>} />{notice && <div className={cn('rounded-lg border px-4 py-3 text-[11px] font-semibold', notice.includes('could not') ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700')} data-testid="status-verification-result">{notice}</div>}<div className="grid gap-5 xl:grid-cols-[1.15fr_.85fr]"><Panel title="Extracted fields" meta={<span className="flex items-center gap-1.5 text-[10px] text-emerald-600"><CheckCircle2 className="size-3" /> AI extracted</span>}>{detail.fields?.length ? <div className="divide-y divide-border/70">{detail.fields.map((field) => <div key={field.label} className="flex items-center justify-between gap-5 px-5 py-4"><div><div className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{field.label}</div><div className="mt-1 text-[12px] font-semibold">{field.value}</div></div><div className="text-right"><div className="mono text-[11px] text-emerald-600">{Math.round(field.confidence)}%</div><div className="mt-1 text-[9px] text-muted-foreground">confidence</div></div></div>)}</div> : <EmptyState title="No extracted fields" message="Fields will appear after the document is processed." />}</Panel><div className="space-y-5"><Panel title="Trust assessment"><div className="flex items-center gap-4 p-5"><div className="grid size-16 place-items-center rounded-full border-[6px] border-[hsl(var(--primary))]/20"><Score value={detail.trustScore} /></div><div><div className="text-[12px] font-bold">Identity confidence</div><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Composite score from issuer, field, and integrity checks.</p></div></div>{detail.signals?.length ? <div className="divide-y divide-border/70 border-t border-border/70">{detail.signals.map((signal) => <div key={signal.label} className="flex items-center justify-between px-5 py-3"><div className="flex items-center gap-2 text-[11px] font-semibold"><span className={cn('size-1.5 rounded-full', signal.severity.toLowerCase().includes('high') ? 'bg-red-500' : signal.severity.toLowerCase().includes('medium') ? 'bg-amber-500' : 'bg-emerald-500')} />{signal.label}</div><span className="text-[10px] text-muted-foreground">{signal.value}</span></div>)}</div> : null}</Panel><Panel title="Verification timeline"><div className="divide-y divide-border/70">{detail.timeline?.length ? detail.timeline.map((item) => <ActivityRow item={item} key={item.id} />) : <EmptyState icon={Clock3} title="No events yet" message="Verification events will be recorded here." />}</div></Panel></div></div></>}</div>;
 }
 
+function EmployeeStressAssessmentModal({ member, onClose }: { member: WorkforceMember; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [shiftHours, setShiftHours] = useState(member.shiftHours ?? 8);
+  const [overtimeHours, setOvertimeHours] = useState(member.overtimeHours ?? 0);
+  const [workloadTasks, setWorkloadTasks] = useState(member.workloadTasks ?? 3);
+  const [restBreakIndex, setRestBreakIndex] = useState(member.restBreakIndex ?? 4);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [notice, setNotice] = useState('');
+
+  const calculatedScore = Math.max(
+    5,
+    Math.min(
+      99,
+      Math.round(shiftHours * 4.5 + workloadTasks * 6 + overtimeHours * 8 - restBreakIndex * 5)
+    )
+  );
+
+  const calculatedLevel =
+    calculatedScore >= 70 ? 'Burnout Risk' : calculatedScore >= 40 ? 'Elevated' : 'Optimal';
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsUpdating(true);
+    setNotice('');
+    try {
+      const res = await fetch(`/api/pramaanx/workforce/${member.id}/stress`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shiftHours,
+          overtimeHours,
+          workloadTasks,
+          restBreakIndex,
+        }),
+      });
+      if (res.ok) {
+        setNotice('Stress assessment updated successfully!');
+        queryClient.invalidateQueries({ queryKey: getListWorkforceQueryKey() });
+        setTimeout(() => onClose(), 800);
+      } else {
+        setNotice('Failed to update stress metrics.');
+      }
+    } catch (_err) {
+      setNotice('Network error updating stress metrics.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-5">
+        <div className="flex items-center justify-between border-b border-border/70 pb-4">
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 place-items-center rounded-xl bg-rose-500/10 text-rose-500">
+              <Heart className="size-5" />
+            </span>
+            <div>
+              <h2 className="text-sm font-bold text-foreground">Employee Stress Assessment</h2>
+              <p className="text-[11px] text-muted-foreground">{member.name} · {member.role}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"><X className="size-4" /></button>
+        </div>
+
+        <div className="flex items-center justify-between rounded-xl bg-muted/60 p-4 border border-border/50">
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Calculated Stress Score</div>
+            <div className="mono text-2xl font-extrabold text-foreground">{calculatedScore} / 100</div>
+          </div>
+          <span className={cn(
+            'px-3 py-1 rounded-full text-xs font-bold border',
+            calculatedScore >= 70 ? 'bg-rose-500/15 text-rose-600 border-rose-500/30' : calculatedScore >= 40 ? 'bg-amber-500/15 text-amber-600 border-amber-500/30' : 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30'
+          )}>
+            {calculatedLevel}
+          </span>
+        </div>
+
+        <form onSubmit={submit} className="space-y-4">
+          <div className="space-y-3">
+            <div>
+              <div className="flex justify-between text-[11px] font-semibold mb-1">
+                <span>Shift Duration</span>
+                <span className="mono font-bold text-foreground">{shiftHours} Hours</span>
+              </div>
+              <input type="range" min={6} max={16} value={shiftHours} onChange={(e) => setShiftHours(Number(e.target.value))} className="w-full accent-[hsl(var(--primary))]" />
+            </div>
+
+            <div>
+              <div className="flex justify-between text-[11px] font-semibold mb-1">
+                <span>Overtime Hours</span>
+                <span className="mono font-bold text-foreground">{overtimeHours} Hours</span>
+              </div>
+              <input type="range" min={0} max={8} value={overtimeHours} onChange={(e) => setOvertimeHours(Number(e.target.value))} className="w-full accent-amber-500" />
+            </div>
+
+            <div>
+              <div className="flex justify-between text-[11px] font-semibold mb-1">
+                <span>Active Workload / Tasks</span>
+                <span className="mono font-bold text-foreground">{workloadTasks} Active Tasks</span>
+              </div>
+              <input type="range" min={1} max={15} value={workloadTasks} onChange={(e) => setWorkloadTasks(Number(e.target.value))} className="w-full accent-blue-500" />
+            </div>
+
+            <div>
+              <div className="flex justify-between text-[11px] font-semibold mb-1">
+                <span>Rest & Break Rating (1=Minimal, 5=Optimal)</span>
+                <span className="mono font-bold text-foreground">Rating {restBreakIndex}/5</span>
+              </div>
+              <input type="range" min={1} max={5} value={restBreakIndex} onChange={(e) => setRestBreakIndex(Number(e.target.value))} className="w-full accent-emerald-500" />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3.5 flex items-start gap-2.5">
+            <Sparkles className="size-4 text-amber-500 shrink-0 mt-0.5" />
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              {calculatedScore >= 70
+                ? 'AI Alert: High burnout risk detected. Recommend mandatory rest period and overtime cap.'
+                : calculatedScore >= 40
+                ? 'Workload is elevated. Monitor shift fatigue before assigning high-complexity tasks.'
+                : 'Optimal stress balance. Employee is performing within safe cognitive & physical operating limits.'}
+            </p>
+          </div>
+
+          {notice && <p className="text-center text-[11px] font-semibold text-emerald-600">{notice}</p>}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-xs font-bold text-muted-foreground hover:bg-muted">Cancel</button>
+            <button disabled={isUpdating} className="rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90 disabled:opacity-60">
+              {isUpdating ? 'Calculating…' : 'Save & Update Telemetry'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function Workforce() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [selectedMember, setSelectedMember] = useState<WorkforceMember | null>(null);
+  const [isRecalculating, setIsRecalculating] = useState(false);
+  const queryClient = useQueryClient();
+
   const params = useMemo(() => ({ ...(search ? { q: search } : {}), ...(status ? { status } : {}) }), [search, status]);
   const query = useListWorkforce(params, { query: { queryKey: getListWorkforceQueryKey(params) } });
-  return <div className="space-y-7"><SectionHeading eyebrow="People / credentials" title="Workforce assurance" description="Keep every person, credential, and access decision in a single trusted view." /><div className="flex flex-col gap-3 rounded-xl border border-card-border bg-card p-3 shadow-[var(--shadow-sm)] sm:flex-row"><div className="relative flex-1"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input value={search} onChange={(e) => setSearch(e.target.value)} className="h-10 w-full border-0 bg-muted/70 pl-9 text-[11px] outline-none" placeholder="Search name, role, organization…" data-testid="input-search-workforce" /></div><select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 bg-muted/70 px-3 text-[11px] font-semibold outline-none sm:w-40" data-testid="select-workforce-status"><option value="">All statuses</option><option value="active">Active</option><option value="expiring">Expiring soon</option><option value="suspended">Suspended</option></select></div><Panel title="Credential register" meta={<span className="mono text-[10px] text-muted-foreground">{query.data?.length ?? 0} PEOPLE</span>}>{query.isLoading ? <LoadingPanel rows={6} /> : query.isError ? <ErrorState message="Workforce records are unavailable." retry={() => query.refetch()} /> : query.data?.length ? <div className="overflow-x-auto"><table className="w-full min-w-[770px] text-left"><thead><tr className="border-b border-border/70 text-[9px] uppercase tracking-[.12em] text-muted-foreground"><th className="px-5 py-3 font-bold">Person</th><th className="px-4 py-3 font-bold">Organization</th><th className="px-4 py-3 font-bold">Credentials</th><th className="px-4 py-3 font-bold">Trust</th><th className="px-4 py-3 font-bold">Status</th><th className="px-5 py-3 font-bold">Last verified</th></tr></thead><tbody>{query.data.map((member) => <WorkforceRow key={member.id} member={member} />)}</tbody></table></div> : <EmptyState icon={UsersRound} title="No workforce records" message="No people match the current filters." />}</Panel></div>;
+  const members = query.data || [];
+
+  const avgStress = members.length
+    ? Math.round(members.reduce((acc, m) => acc + (m.stressScore ?? 20), 0) / members.length)
+    : 0;
+
+  const highStressCount = members.filter((m) => (m.stressScore ?? 0) >= 70 || m.stressLevel === 'Burnout Risk').length;
+  const elevatedCount = members.filter((m) => (m.stressScore ?? 0) >= 40 && (m.stressScore ?? 0) < 70).length;
+  const optimalCount = members.filter((m) => (m.stressScore ?? 0) < 40).length;
+
+  const handleRecalculateAll = async () => {
+    setIsRecalculating(true);
+    try {
+      await fetch('/api/pramaanx/workforce/recalculate-stress', { method: 'POST' });
+      queryClient.invalidateQueries({ queryKey: getListWorkforceQueryKey() });
+    } catch (_err) {
+      // fallback handling
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
+
+  return (
+    <div className="space-y-7">
+      <SectionHeading
+        eyebrow="People / credentials & stress telemetry"
+        title="Workforce & Stress Monitoring"
+        description="Monitor credential assurance, cognitive workload, and burnout telemetry across all personnel."
+        action={
+          <button
+            onClick={handleRecalculateAll}
+            disabled={isRecalculating}
+            className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm transition-all hover:brightness-110 disabled:opacity-60"
+            data-testid="button-recalculate-stress"
+          >
+            <RefreshCw className={cn('size-3.5', isRecalculating && 'animate-spin')} />
+            {isRecalculating ? 'Recalculating Engine…' : 'Recalculate Live Stress'}
+          </button>
+        }
+      />
+
+      {/* Stress Telemetry KPI Row */}
+      <div className="grid gap-4 sm:grid-cols-4">
+        <div className="rounded-xl border border-card-border bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-semibold text-muted-foreground">Avg Stress Index</span>
+            <Heart className="size-4 text-rose-500" />
+          </div>
+          <div className="mono text-2xl font-extrabold text-foreground">{avgStress}%</div>
+          <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+            <div className={cn('h-full transition-all duration-500', avgStress >= 60 ? 'bg-rose-500' : avgStress >= 40 ? 'bg-amber-500' : 'bg-emerald-500')} style={{ width: `${avgStress}%` }} />
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-card-border bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-semibold text-muted-foreground">High Burnout Risk</span>
+            <AlertTriangle className="size-4 text-rose-500" />
+          </div>
+          <div className="mono text-2xl font-extrabold text-rose-600">{highStressCount} Personnel</div>
+          <div className="mt-1 text-[10px] text-muted-foreground">Requires workload cap</div>
+        </div>
+
+        <div className="rounded-xl border border-card-border bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-semibold text-muted-foreground">Elevated Workload</span>
+            <Gauge className="size-4 text-amber-500" />
+          </div>
+          <div className="mono text-2xl font-extrabold text-amber-600">{elevatedCount} Personnel</div>
+          <div className="mt-1 text-[10px] text-muted-foreground">Under close monitoring</div>
+        </div>
+
+        <div className="rounded-xl border border-card-border bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-semibold text-muted-foreground">Optimal Balance</span>
+            <CheckCircle2 className="size-4 text-emerald-500" />
+          </div>
+          <div className="mono text-2xl font-extrabold text-emerald-600">{optimalCount} Personnel</div>
+          <div className="mt-1 text-[10px] text-muted-foreground">Performing within limits</div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-xl border border-card-border bg-card p-3 shadow-[var(--shadow-sm)] sm:flex-row">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} className="h-10 w-full border-0 bg-muted/70 pl-9 text-[11px] outline-none" placeholder="Search name, role, organization…" data-testid="input-search-workforce" />
+        </div>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 bg-muted/70 px-3 text-[11px] font-semibold outline-none sm:w-40" data-testid="select-workforce-status">
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="expiring">Expiring soon</option>
+          <option value="suspended">Suspended</option>
+        </select>
+      </div>
+
+      <Panel title="Credential & Stress Telemetry Register" meta={<span className="mono text-[10px] text-muted-foreground">{query.data?.length ?? 0} PEOPLE</span>}>
+        {query.isLoading ? (
+          <LoadingPanel rows={6} />
+        ) : query.isError ? (
+          <ErrorState message="Workforce records are unavailable." retry={() => query.refetch()} />
+        ) : query.data?.length ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-left">
+              <thead>
+                <tr className="border-b border-border/70 text-[9px] uppercase tracking-[.12em] text-muted-foreground">
+                  <th className="px-5 py-3 font-bold">Person</th>
+                  <th className="px-4 py-3 font-bold">Organization</th>
+                  <th className="px-4 py-3 font-bold">Stress Index & Level</th>
+                  <th className="px-4 py-3 font-bold">Shift & Workload</th>
+                  <th className="px-4 py-3 font-bold">Trust</th>
+                  <th className="px-4 py-3 font-bold">Status</th>
+                  <th className="px-5 py-3 font-bold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {query.data.map((member) => (
+                  <WorkforceRow key={member.id} member={member} onAssessStress={() => setSelectedMember(member)} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState icon={UsersRound} title="No workforce records" message="No people match the current filters." />
+        )}
+      </Panel>
+
+      {selectedMember && (
+        <EmployeeStressAssessmentModal member={selectedMember} onClose={() => setSelectedMember(null)} />
+      )}
+    </div>
+  );
 }
 
-function WorkforceRow({ member }: { member: WorkforceMember }) {
-  return <tr className="border-b border-border/60 last:border-0 hover:bg-muted/35" data-testid={`row-workforce-${member.id}`}><td className="px-5 py-4"><div className="flex items-center gap-3"><span className="grid size-8 place-items-center rounded-full bg-[hsl(var(--primary))]/10 text-[11px] font-bold text-[hsl(var(--primary))]">{member.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}</span><div><div className="text-[11px] font-bold">{member.name}</div><div className="mt-1 text-[10px] text-muted-foreground">{member.role}</div></div></div></td><td className="px-4 py-4 text-[11px] font-semibold text-muted-foreground">{member.organization}</td><td className="px-4 py-4"><span className="mono text-[12px]">{member.credentials}</span><span className="ml-1.5 text-[10px] text-muted-foreground">active</span></td><td className="px-4 py-4"><Score value={member.trustScore} compact /></td><td className="px-4 py-4"><StatusBadge value={member.status} /></td><td className="px-5 py-4 mono text-[10px] text-muted-foreground">{formatShortDate(member.lastVerified)}</td></tr>;
+function WorkforceRow({ member, onAssessStress }: { member: WorkforceMember; onAssessStress: () => void }) {
+  const stress = member.stressScore ?? 20;
+  const level = member.stressLevel || (stress >= 70 ? 'Burnout Risk' : stress >= 40 ? 'Elevated' : 'Optimal');
+  const levelTone = stress >= 70 ? 'bg-rose-50 text-rose-700 border-rose-200' : stress >= 40 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+
+  return (
+    <tr className="border-b border-border/60 last:border-0 hover:bg-muted/35" data-testid={`row-workforce-${member.id}`}>
+      <td className="px-5 py-4">
+        <div className="flex items-center gap-3">
+          <span className="grid size-8 place-items-center rounded-full bg-[hsl(var(--primary))]/10 text-[11px] font-bold text-[hsl(var(--primary))]">
+            {member.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}
+          </span>
+          <div>
+            <div className="text-[11px] font-bold">{member.name}</div>
+            <div className="mt-1 text-[10px] text-muted-foreground">{member.role}</div>
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-4 text-[11px] font-semibold text-muted-foreground">{member.organization}</td>
+      <td className="px-4 py-4">
+        <div className="flex items-center gap-2">
+          <span className="mono text-xs font-bold w-7 text-right">{stress}%</span>
+          <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
+            <div className={cn('h-full', stress >= 70 ? 'bg-rose-500' : stress >= 40 ? 'bg-amber-500' : 'bg-emerald-500')} style={{ width: `${stress}%` }} />
+          </div>
+          <span className={cn('mono text-[9px] font-bold px-2 py-0.5 rounded-full border', levelTone)}>{level}</span>
+        </div>
+      </td>
+      <td className="px-4 py-4 text-[11px]">
+        <div className="font-semibold text-foreground">{member.shiftHours || 8}h shift {member.overtimeHours ? <span className="text-amber-600 font-bold">(+{member.overtimeHours}h OT)</span> : null}</div>
+        <div className="text-[10px] text-muted-foreground">{member.workloadTasks || 3} active tasks · rest index {member.restBreakIndex || 4}/5</div>
+      </td>
+      <td className="px-4 py-4"><Score value={member.trustScore} compact /></td>
+      <td className="px-4 py-4"><StatusBadge value={member.status} /></td>
+      <td className="px-5 py-4 text-right">
+        <button
+          onClick={onAssessStress}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          data-testid={`button-assess-stress-${member.id}`}
+        >
+          <Heart className="size-3 text-rose-500" /> Assess Stress
+        </button>
+      </td>
+    </tr>
+  );
 }
 
 function Assets() {

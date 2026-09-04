@@ -107,6 +107,12 @@ const seedWorkforce = [
     trustScore: 98,
     credentials: 8,
     lastVerified: "2026-09-04T06:34:28.000Z",
+    shiftHours: 8,
+    overtimeHours: 0,
+    workloadTasks: 3,
+    restBreakIndex: 4,
+    stressScore: 34,
+    stressLevel: "Optimal",
   },
   {
     id: "worker-02",
@@ -117,6 +123,12 @@ const seedWorkforce = [
     trustScore: 74,
     credentials: 6,
     lastVerified: "2026-09-04T06:22:12.000Z",
+    shiftHours: 11,
+    overtimeHours: 3,
+    workloadTasks: 7,
+    restBreakIndex: 2,
+    stressScore: 78,
+    stressLevel: "Burnout Risk",
   },
   {
     id: "worker-03",
@@ -127,6 +139,12 @@ const seedWorkforce = [
     trustScore: 42,
     credentials: 4,
     lastVerified: "2026-09-04T05:55:46.000Z",
+    shiftHours: 12,
+    overtimeHours: 4,
+    workloadTasks: 9,
+    restBreakIndex: 1,
+    stressScore: 89,
+    stressLevel: "Burnout Risk",
   },
   {
     id: "worker-04",
@@ -137,8 +155,14 @@ const seedWorkforce = [
     trustScore: 86,
     credentials: 7,
     lastVerified: "2026-09-03T15:16:10.000Z",
+    shiftHours: 9,
+    overtimeHours: 1,
+    workloadTasks: 4,
+    restBreakIndex: 3,
+    stressScore: 57,
+    stressLevel: "Elevated",
   },
-] as const;
+];
 
 const seedAssets = [
   {
@@ -599,6 +623,22 @@ router.post("/documents/upload", async (req, res): Promise<void> => {
   res.status(201).json(UploadDocumentResponse.parse(document));
 });
 
+export function calculateStressScore(params: {
+  shiftHours: number;
+  overtimeHours: number;
+  workloadTasks: number;
+  restBreakIndex: number;
+}) {
+  const { shiftHours, overtimeHours, workloadTasks, restBreakIndex } = params;
+  const rawScore = Math.round(
+    shiftHours * 4.5 + workloadTasks * 6 + overtimeHours * 8 - restBreakIndex * 5
+  );
+  const stressScore = Math.max(5, Math.min(99, rawScore));
+  const stressLevel =
+    stressScore >= 70 ? "Burnout Risk" : stressScore >= 40 ? "Elevated" : "Optimal";
+  return { stressScore, stressLevel };
+}
+
 router.get("/workforce", async (req, res): Promise<void> => {
   await initializePramaanxData();
   const query = ListWorkforceQueryParams.parse(req.query);
@@ -622,6 +662,77 @@ router.get("/workforce", async (req, res): Promise<void> => {
     .where(filters.length ? and(...filters) : undefined)
     .orderBy(desc(pramaanxWorkforceTable.lastVerified));
   res.json(ListWorkforceResponse.parse(result));
+});
+
+router.post("/workforce/recalculate-stress", async (_req, res): Promise<void> => {
+  await initializePramaanxData();
+  const allWorkers = await db.select().from(pramaanxWorkforceTable);
+
+  const updatedWorkers = [];
+  for (const worker of allWorkers) {
+    const { stressScore, stressLevel } = calculateStressScore({
+      shiftHours: worker.shiftHours || 8,
+      overtimeHours: worker.overtimeHours || 0,
+      workloadTasks: worker.workloadTasks || 3,
+      restBreakIndex: worker.restBreakIndex || 4,
+    });
+
+    const [updated] = await db
+      .update(pramaanxWorkforceTable)
+      .set({ stressScore, stressLevel })
+      .where(eq(pramaanxWorkforceTable.id, worker.id))
+      .returning();
+    updatedWorkers.push(updated);
+  }
+
+  res.json({
+    message: "Workforce stress recalculation complete",
+    count: updatedWorkers.length,
+    workers: ListWorkforceResponse.parse(updatedWorkers),
+  });
+});
+
+router.patch("/workforce/:id/stress", async (req, res): Promise<void> => {
+  await initializePramaanxData();
+  const { id } = req.params;
+  const { shiftHours, overtimeHours, workloadTasks, restBreakIndex } = req.body;
+
+  const [existing] = await db
+    .select()
+    .from(pramaanxWorkforceTable)
+    .where(eq(pramaanxWorkforceTable.id, id));
+
+  if (!existing) {
+    res.status(404).json({ error: "Workforce member not found" });
+    return;
+  }
+
+  const newShift = shiftHours !== undefined ? Number(shiftHours) : existing.shiftHours;
+  const newOT = overtimeHours !== undefined ? Number(overtimeHours) : existing.overtimeHours;
+  const newWorkload = workloadTasks !== undefined ? Number(workloadTasks) : existing.workloadTasks;
+  const newBreak = restBreakIndex !== undefined ? Number(restBreakIndex) : existing.restBreakIndex;
+
+  const { stressScore, stressLevel } = calculateStressScore({
+    shiftHours: newShift,
+    overtimeHours: newOT,
+    workloadTasks: newWorkload,
+    restBreakIndex: newBreak,
+  });
+
+  const [updated] = await db
+    .update(pramaanxWorkforceTable)
+    .set({
+      shiftHours: newShift,
+      overtimeHours: newOT,
+      workloadTasks: newWorkload,
+      restBreakIndex: newBreak,
+      stressScore,
+      stressLevel,
+    })
+    .where(eq(pramaanxWorkforceTable.id, id))
+    .returning();
+
+  res.json(updated);
 });
 
 router.get("/assets", async (_req, res): Promise<void> => {

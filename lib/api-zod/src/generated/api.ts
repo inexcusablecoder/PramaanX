@@ -185,7 +185,13 @@ export const ListWorkforceResponseItem = zod.object({
   "status": zod.string(),
   "trustScore": zod.number(),
   "credentials": zod.number(),
-  "lastVerified": zod.coerce.date()
+  "lastVerified": zod.coerce.date(),
+  "shiftHours": zod.number().optional(),
+  "overtimeHours": zod.number().optional(),
+  "workloadTasks": zod.number().optional(),
+  "restBreakIndex": zod.number().optional(),
+  "stressScore": zod.number().optional(),
+  "stressLevel": zod.string().optional()
 })
 export const ListWorkforceResponse = zod.array(ListWorkforceResponseItem)
 
