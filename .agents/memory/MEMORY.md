@@ -1,0 +1,1 @@
+- [OpenAPI integer compatibility](openapi-integer-compatibility.md) — this workspace's generated Zod client is Zod 3-compatible only; integer schemas currently emit unsupported z.int().
