@@ -59,6 +59,12 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
+import Login from '@/pages/login';
+import Onboarding from '@/pages/onboarding';
+import ITDashboard from '@/pages/dashboards/it-dashboard';
+import ConstructionDashboard from '@/pages/dashboards/construction-dashboard';
+import MedicalDashboard from '@/pages/dashboards/medical-dashboard';
+import { AICopilotDrawer, AlertCenterDrawer } from '@/components/common-modules';
 
 const queryClient = new QueryClient();
 
@@ -91,18 +97,41 @@ function Logo() {
 }
 
 function AppShell({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [alertCenterOpen, setAlertCenterOpen] = useState(false);
+
   return (
     <div className="noise min-h-[100dvh] bg-background">
       <aside className={cn('fixed inset-y-0 left-0 z-40 flex w-[248px] flex-col border-r border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar))] px-4 py-5 transition-transform duration-200 lg:translate-x-0', mobileOpen ? 'translate-x-0' : '-translate-x-full')}>
-        <div className="mb-10 flex items-center justify-between px-2">
+        <div className="mb-8 flex items-center justify-between px-2">
           <Logo />
           <button onClick={() => setMobileOpen(false)} className="rounded-lg p-1 text-slate-400 hover:bg-white/10 lg:hidden" data-testid="button-close-menu"><X className="size-4" /></button>
         </div>
-        <div className="mb-3 px-3 mono text-[9px] font-medium uppercase tracking-[.2em] text-slate-500">Workspace</div>
+
+        {/* Sector Dashboards Quick Selector */}
+        <div className="mb-4 px-3">
+          <div className="mb-2 mono text-[9px] font-medium uppercase tracking-[.2em] text-slate-500">Sectors</div>
+          <div className="space-y-1">
+            <Link href="/" className={cn('flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors', location === '/' ? 'bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent))] border border-[hsl(var(--accent))]/30' : 'text-slate-400 hover:bg-white/[.06] hover:text-white')}>
+              <LayoutDashboard className="size-3.5" /> Executive Command
+            </Link>
+            <Link href="/dashboard/it" className={cn('flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors', location === '/dashboard/it' ? 'bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent))] border border-[hsl(var(--accent))]/30' : 'text-slate-400 hover:bg-white/[.06] hover:text-white')}>
+              <span className="size-2 rounded-full bg-blue-400" /> IT & Software
+            </Link>
+            <Link href="/dashboard/construction" className={cn('flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors', location === '/dashboard/construction' ? 'bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent))] border border-[hsl(var(--accent))]/30' : 'text-slate-400 hover:bg-white/[.06] hover:text-white')}>
+              <span className="size-2 rounded-full bg-amber-400" /> Construction / Field
+            </Link>
+            <Link href="/dashboard/medical" className={cn('flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors', location === '/dashboard/medical' ? 'bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent))] border border-[hsl(var(--accent))]/30' : 'text-slate-400 hover:bg-white/[.06] hover:text-white')}>
+              <span className="size-2 rounded-full bg-rose-400" /> Healthcare / Medical
+            </Link>
+          </div>
+        </div>
+
+        <div className="mb-2 px-3 mono text-[9px] font-medium uppercase tracking-[.2em] text-slate-500">Modules</div>
         <nav className="space-y-1">
           {navItems.map(({ href, label, icon: Icon }) => {
             const active = href === '/' ? location === '/' : location.startsWith(href);
@@ -116,15 +145,14 @@ function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="mt-auto">
-          <div className="mb-5 rounded-xl border border-white/10 bg-white/[.045] p-3.5">
-            <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold text-slate-200"><span className="size-1.5 rounded-full bg-emerald-400" /> Systems nominal</div>
-            <p className="text-[10px] leading-relaxed text-slate-500">All verification pipelines are responding within target.</p>
-            <div className="mt-3 flex items-center justify-between mono text-[9px] text-slate-500"><span>API latency</span><span className="text-emerald-400">84 ms</span></div>
+          <div className="mb-4 rounded-xl border border-white/10 bg-white/[.045] p-3">
+            <div className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold text-slate-200"><span className="size-1.5 rounded-full bg-emerald-400" /> Systems nominal</div>
+            <p className="text-[10px] leading-relaxed text-slate-500">All verification pipelines responding.</p>
           </div>
           <div className="flex items-center gap-3 rounded-lg px-2 py-2">
             <div className="grid size-8 place-items-center rounded-full bg-[hsl(var(--primary))] text-[11px] font-bold text-white">AR</div>
             <div className="min-w-0"><div className="truncate text-[11px] font-semibold text-slate-200">Ari Raghavan</div><div className="text-[10px] text-slate-500">Control room lead</div></div>
-            <button onClick={() => setProfileOpen(true)} className="ml-auto text-slate-500 hover:text-slate-200" data-testid="button-profile-settings"><SlidersHorizontal className="size-3.5" /></button>
+            <button onClick={() => setLocation('/login')} title="Sign out" className="ml-auto text-slate-500 hover:text-white text-[11px] font-bold" data-testid="button-login-page">Sign In</button>
           </div>
         </div>
       </aside>
@@ -132,21 +160,26 @@ function AppShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-30 flex h-[62px] items-center justify-between border-b border-border/80 bg-background/90 px-5 backdrop-blur-md lg:px-8">
           <div className="flex items-center gap-3">
             <button onClick={() => setMobileOpen(true)} className="rounded-lg p-2 text-muted-foreground hover:bg-muted lg:hidden" data-testid="button-open-menu"><Menu className="size-5" /></button>
-            <div className="hidden items-center gap-2 text-[11px] text-muted-foreground sm:flex"><span className="mono text-[10px] uppercase tracking-[.14em]">Control room</span><ChevronRight className="size-3" /><span className="font-semibold text-foreground">{navItems.find((item) => item.href !== '/' && location.startsWith(item.href))?.label || 'Today'}</span></div>
+            <div className="hidden items-center gap-2 text-[11px] text-muted-foreground sm:flex"><span className="mono text-[10px] uppercase tracking-[.14em]">Control room</span><ChevronRight className="size-3" /><span className="font-semibold text-foreground">{navItems.find((item) => item.href !== '/' && location.startsWith(item.href))?.label || 'Overview'}</span></div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="hidden items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-[10px] text-muted-foreground sm:flex"><span className="size-1.5 rounded-full bg-emerald-500" /> Live data</div>
+            {/* AI Copilot & Alert Center Drawer Triggers */}
+            <button onClick={() => setCopilotOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[hsl(var(--accent))]/15 border border-[hsl(var(--accent))]/30 text-[11px] font-bold text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent))]/25 transition-all">
+              <span className="size-2 rounded-full bg-amber-400 animate-pulse" /> AI Copilot
+            </button>
+            <button onClick={() => setAlertCenterOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 text-[11px] font-bold text-red-600 hover:bg-red-500/20 transition-all">
+              Alert Center
+            </button>
             <div className="relative">
               <button onClick={() => { setNotificationsOpen(!notificationsOpen); setProfileOpen(false); }} className="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" data-testid="button-notifications"><Bell className="size-[17px]" /><span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-[hsl(var(--accent))]" /></button>
               {notificationsOpen && <div className="absolute right-0 top-11 z-50 w-64 rounded-xl border border-border bg-card p-4 shadow-[var(--shadow-md)]"><div className="flex items-center justify-between"><span className="text-[11px] font-bold">Signal inbox</span><span className="mono text-[9px] text-emerald-600">ALL CLEAR</span></div><p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">No new critical signals. The command center is operating within expected parameters.</p><button onClick={() => setNotificationsOpen(false)} className="mt-3 text-[10px] font-bold text-[hsl(var(--primary))] hover:underline" data-testid="button-dismiss-notifications">Dismiss</button></div>}
             </div>
-            <div className="relative">
-              <button onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false); }} className="hidden size-8 place-items-center rounded-full bg-[hsl(var(--primary))] text-[10px] font-bold text-white sm:grid" data-testid="button-profile"><span>AR</span></button>
-              {profileOpen && <div className="absolute right-0 top-11 z-50 w-52 rounded-xl border border-border bg-card p-3 shadow-[var(--shadow-md)]"><div className="text-[11px] font-bold">Ari Raghavan</div><div className="mt-1 text-[10px] text-muted-foreground">Control room lead</div><button onClick={() => setProfileOpen(false)} className="mt-3 w-full rounded-lg bg-muted px-3 py-2 text-left text-[10px] font-bold hover:bg-secondary" data-testid="button-close-profile">Close profile menu</button></div>}
-            </div>
           </div>
         </header>
         <main className="mx-auto max-w-[1600px] px-5 py-7 lg:px-8 lg:py-9">{children}</main>
+
+        <AICopilotDrawer isOpen={copilotOpen} onClose={() => setCopilotOpen(false)} />
+        <AlertCenterDrawer isOpen={alertCenterOpen} onClose={() => setAlertCenterOpen(false)} />
       </div>
     </div>
   );
@@ -300,7 +333,28 @@ function ActivityPage() {
 }
 
 function Router() {
-  return <ErrorBoundary><AppShell><Switch><Route path="/" component={Dashboard} /><Route path="/documents" component={Documents} /><Route path="/documents/:id" component={DocumentDetailPage} /><Route path="/workforce" component={Workforce} /><Route path="/assets" component={Assets} /><Route path="/activity" component={ActivityPage} /><Route component={NotFound} /></Switch></AppShell></ErrorBoundary>;
+  const [location] = useLocation();
+  if (location === '/login') return <Login />;
+  if (location === '/onboarding') return <Onboarding />;
+
+  return (
+    <ErrorBoundary>
+      <AppShell>
+        <Switch>
+          <Route path="/" component={Dashboard} />
+          <Route path="/dashboard/it" component={ITDashboard} />
+          <Route path="/dashboard/construction" component={ConstructionDashboard} />
+          <Route path="/dashboard/medical" component={MedicalDashboard} />
+          <Route path="/documents" component={Documents} />
+          <Route path="/documents/:id" component={DocumentDetailPage} />
+          <Route path="/workforce" component={Workforce} />
+          <Route path="/assets" component={Assets} />
+          <Route path="/activity" component={ActivityPage} />
+          <Route component={NotFound} />
+        </Switch>
+      </AppShell>
+    </ErrorBoundary>
+  );
 }
 
 function App() {
