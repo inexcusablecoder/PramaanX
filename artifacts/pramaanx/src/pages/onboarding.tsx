@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
+import { useAuth } from '@/lib/auth-context';
 import {
   ArrowLeft,
   ArrowRight,
@@ -89,7 +90,28 @@ export default function Onboarding() {
     }, 1200);
   };
 
-  const finishOnboarding = () => {
+  const { register } = useAuth();
+
+  const finishOnboarding = async () => {
+    await register(
+      {
+        companyName,
+        companyEmail,
+        companySize,
+        industry,
+        businessType,
+        departments,
+        branches,
+        capacity,
+      },
+      {
+        adminName: employeeName || 'Enterprise Admin',
+        adminEmail: companyEmail,
+        adminRole: 'CEO / Executive',
+        adminDept: 'Operations',
+      }
+    );
+
     // Land on the corresponding sector dashboard
     if (industry === 'IT & Software') setLocation('/dashboard/it');
     else if (industry === 'Private Sector') setLocation('/dashboard/construction');

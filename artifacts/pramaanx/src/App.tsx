@@ -21,6 +21,7 @@ import {
   Gauge,
   KeyRound,
   LayoutDashboard,
+  LogOut,
   Menu,
   PackageCheck,
   Plus,
@@ -34,6 +35,7 @@ import {
   UsersRound,
   X,
 } from 'lucide-react';
+import { AuthProvider, useAuth } from '@/lib/auth-context';
 import {
   getGetDashboardSummaryQueryKey,
   getGetDocumentQueryKey,
@@ -98,11 +100,16 @@ function Logo() {
 
 function AppShell({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
+  const { user, company, isAuthenticated, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [alertCenterOpen, setAlertCenterOpen] = useState(false);
+
+  const userInitials = user?.name
+    ? user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
+    : 'PX';
 
   return (
     <div className="noise min-h-[100dvh] bg-background">
@@ -149,10 +156,21 @@ function AppShell({ children }: { children: React.ReactNode }) {
             <div className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold text-slate-200"><span className="size-1.5 rounded-full bg-emerald-400" /> Systems nominal</div>
             <p className="text-[10px] leading-relaxed text-slate-500">All verification pipelines responding.</p>
           </div>
-          <div className="flex items-center gap-3 rounded-lg px-2 py-2">
-            <div className="grid size-8 place-items-center rounded-full bg-[hsl(var(--primary))] text-[11px] font-bold text-white">AR</div>
-            <div className="min-w-0"><div className="truncate text-[11px] font-semibold text-slate-200">Ari Raghavan</div><div className="text-[10px] text-slate-500">Control room lead</div></div>
-            <button onClick={() => setLocation('/login')} title="Sign out" className="ml-auto text-slate-500 hover:text-white text-[11px] font-bold" data-testid="button-login-page">Sign In</button>
+          <div className="flex items-center gap-3 rounded-lg px-2 py-2 border-t border-white/10 pt-3">
+            <div className="grid size-8 shrink-0 place-items-center rounded-full bg-[hsl(var(--primary))] text-[11px] font-bold text-white shadow-sm">{userInitials}</div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[11px] font-semibold text-slate-200">{user?.name || 'Ari Raghavan'}</div>
+              <div className="truncate text-[10px] text-slate-400">{company?.name || user?.role || 'Control Room'}</div>
+            </div>
+            {isAuthenticated ? (
+              <button onClick={() => logout()} title="Sign out" className="text-slate-400 hover:text-rose-400 p-1.5 rounded-md hover:bg-white/10 transition-colors" data-testid="button-logout">
+                <LogOut className="size-4" />
+              </button>
+            ) : (
+              <button onClick={() => setLocation('/login')} title="Sign in" className="ml-auto text-slate-400 hover:text-white text-[11px] font-bold" data-testid="button-login-page">
+                Sign In
+              </button>
+            )}
           </div>
         </div>
       </aside>
@@ -334,8 +352,10 @@ function ActivityPage() {
 
 function Router() {
   const [location] = useLocation();
-  if (location === '/login') return <Login />;
+  const { isAuthenticated } = useAuth();
+
   if (location === '/onboarding') return <Onboarding />;
+  if (!isAuthenticated || location === '/login') return <Login />;
 
   return (
     <ErrorBoundary>
@@ -358,7 +378,18 @@ function Router() {
 }
 
 function App() {
-  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+            <Router />
+          </WouterRouter>
+          <Toaster />
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
 }
 
 export default App;

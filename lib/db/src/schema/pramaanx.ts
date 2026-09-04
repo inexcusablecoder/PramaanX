@@ -57,6 +57,33 @@ export const pramaanxActivityTable = pgTable("pramaanx_activity", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
 });
 
+export const pramaanxCompaniesTable = pgTable("pramaanx_companies", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  size: text("size").notNull(),
+  industry: text("industry").notNull(),
+  businessType: text("business_type").notNull(),
+  departments: text("departments").notNull(),
+  branches: text("branches").notNull(),
+  capacity: integer("capacity").notNull().default(100),
+  verificationStatus: text("verification_status").notNull().default("verified"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+});
+
+export const pramaanxUsersTable = pgTable("pramaanx_users", {
+  id: text("id").primaryKey(),
+  companyId: text("company_id")
+    .notNull()
+    .references(() => pramaanxCompaniesTable.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  password: text("password").notNull(),
+  role: text("role").notNull(),
+  department: text("department").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+});
+
 export const insertPramaanxDocumentSchema = createInsertSchema(
   pramaanxDocumentsTable,
 ).omit({ id: true });
@@ -71,6 +98,12 @@ export const insertPramaanxAssetSchema = createInsertSchema(
 ).omit({ id: true });
 export const insertPramaanxActivitySchema = createInsertSchema(
   pramaanxActivityTable,
+).omit({ id: true });
+export const insertPramaanxCompanySchema = createInsertSchema(
+  pramaanxCompaniesTable,
+).omit({ id: true });
+export const insertPramaanxUserSchema = createInsertSchema(
+  pramaanxUsersTable,
 ).omit({ id: true });
 
 export type PramaanxDocument = typeof pramaanxDocumentsTable.$inferSelect;
@@ -92,3 +125,7 @@ export type PramaanxActivity = typeof pramaanxActivityTable.$inferSelect;
 export type InsertPramaanxActivity = z.infer<
   typeof insertPramaanxActivitySchema
 >;
+export type PramaanxCompany = typeof pramaanxCompaniesTable.$inferSelect;
+export type InsertPramaanxCompany = z.infer<typeof insertPramaanxCompanySchema>;
+export type PramaanxUser = typeof pramaanxUsersTable.$inferSelect;
+export type InsertPramaanxUser = z.infer<typeof insertPramaanxUserSchema>;

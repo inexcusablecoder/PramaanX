@@ -1,22 +1,28 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { ArrowRight, CheckCircle2, Lock, Mail, ShieldCheck, Sparkles, Building2 } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 
 export default function Login() {
   const [, setLocation] = useLocation();
+  const { login } = useAuth();
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      // Navigate to onboarding or command center based on flow
+    setErrorMsg('');
+    const success = await login(email, password);
+    setLoading(false);
+    if (success) {
       setLocation('/');
-    }, 600);
+    } else {
+      setErrorMsg('Invalid credentials. Please try again.');
+    }
   };
 
   const handleRegisterStart = (e: React.FormEvent) => {
