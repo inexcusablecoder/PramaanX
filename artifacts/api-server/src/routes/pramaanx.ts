@@ -225,63 +225,69 @@ const seedActivity = [
 let initializationPromise: Promise<void> | undefined;
 
 export function initializePramaanxData(): Promise<void> {
-  initializationPromise ??= db.transaction(async (tx) => {
-    await tx
-      .insert(pramaanxDocumentsTable)
-      .values(
-        seedDocuments.map((document) => ({
-          ...document,
-          submittedAt: new Date(document.submittedAt),
-          updatedAt: new Date(document.updatedAt),
-        })),
-      )
-      .onConflictDoNothing();
+  initializationPromise ??= (async () => {
+    try {
+      await db.transaction(async (tx) => {
+        await tx
+          .insert(pramaanxDocumentsTable)
+          .values(
+            seedDocuments.map((document) => ({
+              ...document,
+              submittedAt: new Date(document.submittedAt),
+              updatedAt: new Date(document.updatedAt),
+            })),
+          )
+          .onConflictDoNothing();
 
-    await tx
-      .insert(pramaanxWorkforceTable)
-      .values(
-        seedWorkforce.map((member) => ({
-          ...member,
-          lastVerified: new Date(member.lastVerified),
-        })),
-      )
-      .onConflictDoNothing();
+        await tx
+          .insert(pramaanxWorkforceTable)
+          .values(
+            seedWorkforce.map((member) => ({
+              ...member,
+              lastVerified: new Date(member.lastVerified),
+            })),
+          )
+          .onConflictDoNothing();
 
-    await tx
-      .insert(pramaanxAssetsTable)
-      .values(
-        seedAssets.map((asset) => ({
-          ...asset,
-          lastSeen: new Date(asset.lastSeen),
-        })),
-      )
-      .onConflictDoNothing();
+        await tx
+          .insert(pramaanxAssetsTable)
+          .values(
+            seedAssets.map((asset) => ({
+              ...asset,
+              lastSeen: new Date(asset.lastSeen),
+            })),
+          )
+          .onConflictDoNothing();
 
-    await tx
-      .insert(pramaanxActivityTable)
-      .values(
-        seedActivity.map((item) => ({
-          ...item,
-          createdAt: new Date(item.createdAt),
-        })),
-      )
-      .onConflictDoNothing();
+        await tx
+          .insert(pramaanxActivityTable)
+          .values(
+            seedActivity.map((item) => ({
+              ...item,
+              createdAt: new Date(item.createdAt),
+            })),
+          )
+          .onConflictDoNothing();
 
-    await tx
-      .insert(pramaanxVerificationDecisionsTable)
-      .values(
-        seedDocuments
-          .filter((document) => document.status === "verified")
-          .map((document) => ({
-            id: `seed-decision-${document.id}`,
-            documentId: document.id,
-            decision: "verified",
-            trustScore: document.trustScore,
-            checkedAt: new Date(document.updatedAt),
-          })),
-      )
-      .onConflictDoNothing();
-  });
+        await tx
+          .insert(pramaanxVerificationDecisionsTable)
+          .values(
+            seedDocuments
+              .filter((document) => document.status === "verified")
+              .map((document) => ({
+                id: `seed-decision-${document.id}`,
+                documentId: document.id,
+                decision: "verified",
+                trustScore: document.trustScore,
+                checkedAt: new Date(document.updatedAt),
+              })),
+          )
+          .onConflictDoNothing();
+      });
+    } catch (_err) {
+      // In-memory demo fallback when standalone local database is not connected
+    }
+  })();
 
   return initializationPromise;
 }
