@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "PramaanX"
+description = "An enterprise operations command center for AI-assisted document verification, workforce credentials, asset custody, risk intelligence, and compliance visibility."
+version = "1.0.0"
+id = "artifacts/pramaanx"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18329
+
+[services.development]
+run = "pnpm --filter @workspace/pramaanx run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/pramaanx", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/pramaanx/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18329"
+BASE_PATH = "/"
