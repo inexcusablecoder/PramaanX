@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   GetDashboardSummaryResponse,
@@ -5,6 +7,7 @@ import {
   GetDocumentResponse,
   ListActivityQueryParams,
   ListActivityResponse,
+  ListAssetsResponse,
   ListDocumentsQueryParams,
   ListDocumentsResponse,
   ListWorkforceQueryParams,
@@ -14,20 +17,18 @@ import {
   VerifyDocumentParams,
   VerifyDocumentResponse,
 } from "@workspace/api-zod";
+import {
+  db,
+  pramaanxActivityTable,
+  pramaanxAssetsTable,
+  pramaanxDocumentsTable,
+  pramaanxVerificationDecisionsTable,
+  pramaanxWorkforceTable,
+  type PramaanxActivity,
+  type PramaanxDocument,
+} from "@workspace/db";
 
-type DocumentRecord = {
-  id: string;
-  name: string;
-  type: string;
-  subject: string;
-  issuer: string;
-  status: string;
-  trustScore: number;
-  submittedAt: string;
-  updatedAt: string;
-};
-
-const documents: DocumentRecord[] = [
+const seedDocuments = [
   {
     id: "doc-1048",
     name: "Aadhaar identity proof",
@@ -94,9 +95,9 @@ const documents: DocumentRecord[] = [
     submittedAt: "2026-09-04T04:44:00.000Z",
     updatedAt: "2026-09-04T04:44:32.000Z",
   },
-];
+] as const;
 
-const workforce = [
+const seedWorkforce = [
   {
     id: "worker-01",
     name: "Ananya Sharma",
@@ -137,9 +138,9 @@ const workforce = [
     credentials: 7,
     lastVerified: "2026-09-03T15:16:10.000Z",
   },
-];
+] as const;
 
-const assets = [
+const seedAssets = [
   {
     id: "asset-034",
     name: "Container AX-3492",
@@ -176,18 +177,9 @@ const assets = [
     trustScore: 88,
     lastSeen: "2026-09-04T06:31:00.000Z",
   },
-];
+] as const;
 
-type ActivityRecord = {
-  id: string;
-  title: string;
-  description: string;
-  type: string;
-  actor: string;
-  createdAt: string;
-};
-
-const activity: ActivityRecord[] = [
+const seedActivity = [
   {
     id: "activity-01",
     title: "Document verified",
@@ -228,150 +220,422 @@ const activity: ActivityRecord[] = [
     actor: "Risk intelligence",
     createdAt: "2026-09-04T05:48:00.000Z",
   },
-];
+] as const;
 
-function getDocumentDetail(document: DocumentRecord) {
+let initializationPromise: Promise<void> | undefined;
+
+export function initializePramaanxData(): Promise<void> {
+  initializationPromise ??= db.transaction(async (tx) => {
+    await tx
+      .insert(pramaanxDocumentsTable)
+      .values(
+        seedDocuments.map((document) => ({
+          ...document,
+          submittedAt: new Date(document.submittedAt),
+          updatedAt: new Date(document.updatedAt),
+        })),
+      )
+      .onConflictDoNothing();
+
+    await tx
+      .insert(pramaanxWorkforceTable)
+      .values(
+        seedWorkforce.map((member) => ({
+          ...member,
+          lastVerified: new Date(member.lastVerified),
+        })),
+      )
+      .onConflictDoNothing();
+
+    await tx
+      .insert(pramaanxAssetsTable)
+      .values(
+        seedAssets.map((asset) => ({
+          ...asset,
+          lastSeen: new Date(asset.lastSeen),
+        })),
+      )
+      .onConflictDoNothing();
+
+    await tx
+      .insert(pramaanxActivityTable)
+      .values(
+        seedActivity.map((item) => ({
+          ...item,
+          createdAt: new Date(item.createdAt),
+        })),
+      )
+      .onConflictDoNothing();
+
+    await tx
+      .insert(pramaanxVerificationDecisionsTable)
+      .values(
+        seedDocuments
+          .filter((document) => document.status === "verified")
+          .map((document) => ({
+            id: `seed-decision-${document.id}`,
+            documentId: document.id,
+            decision: "verified",
+            trustScore: document.trustScore,
+            checkedAt: new Date(document.updatedAt),
+          })),
+      )
+      .onConflictDoNothing();
+  });
+
+  return initializationPromise;
+}
+
+function getDocumentDetail(
+  document: PramaanxDocument,
+  activity: PramaanxActivity[],
+) {
   return {
     ...document,
     fields: [
       { label: "Full name", value: document.subject, confidence: 0.99 },
       { label: "Document type", value: document.type, confidence: 0.98 },
       { label: "Issuing authority", value: document.issuer, confidence: 0.97 },
-      { label: "Verification reference", value: `PX-${document.id.slice(-4)}-2026`, confidence: 0.95 },
+      {
+        label: "Verification reference",
+        value: `PX-${document.id.slice(-4)}-2026`,
+        confidence: 0.95,
+      },
     ],
     signals:
       document.status === "flagged"
         ? [
-            { label: "Metadata consistency", value: "Review required", severity: "high" },
-            { label: "Issuer match", value: "Partial match", severity: "medium" },
-            { label: "Pixel forensics", value: "Copy-move pattern detected", severity: "high" },
+            {
+              label: "Metadata consistency",
+              value: "Review required",
+              severity: "high",
+            },
+            {
+              label: "Issuer match",
+              value: "Partial match",
+              severity: "medium",
+            },
+            {
+              label: "Pixel forensics",
+              value: "Copy-move pattern detected",
+              severity: "high",
+            },
           ]
         : [
-            { label: "Metadata consistency", value: "Passed", severity: "low" },
+            {
+              label: "Metadata consistency",
+              value: "Passed",
+              severity: "low",
+            },
             { label: "Issuer match", value: "Verified", severity: "low" },
-            { label: "Pixel forensics", value: "No tampering detected", severity: "low" },
+            {
+              label: "Pixel forensics",
+              value: "No tampering detected",
+              severity: "low",
+            },
           ],
-    timeline: activity.filter((item) => item.type === "verification" || item.type === "risk").slice(0, 3),
+    timeline: activity
+      .filter((item) => item.type === "verification" || item.type === "risk")
+      .slice(0, 3),
   };
+}
+
+function average(values: number[]): number {
+  return values.length
+    ? values.reduce((total, value) => total + value, 0) / values.length
+    : 0;
+}
+
+function dayKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function getProcessingTrend(documents: PramaanxDocument[]) {
+  const dates = documents.map((document) => document.updatedAt.getTime());
+  const end = new Date(Math.max(Date.now(), ...dates));
+  end.setUTCHours(0, 0, 0, 0);
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(end);
+    date.setUTCDate(end.getUTCDate() - (6 - index));
+    const key = dayKey(date);
+    return {
+      label: date.toLocaleDateString("en-US", {
+        weekday: "short",
+        timeZone: "UTC",
+      }),
+      verified: documents.filter(
+        (document) =>
+          dayKey(document.updatedAt) === key && document.status === "verified",
+      ).length,
+      flagged: documents.filter(
+        (document) =>
+          dayKey(document.updatedAt) === key && document.status === "flagged",
+      ).length,
+    };
+  });
 }
 
 const router: IRouter = Router();
 
-router.get("/dashboard/summary", (_req, res) => {
-  const data = GetDashboardSummaryResponse.parse({
-    verification: { total: 248, verified: 218, pending: 18, flagged: 12, averageTimeSeconds: 24.8 },
-    workforce: { total: 184, active: 171, expiringSoon: 9, complianceRate: 93.5 },
-    assets: { total: 64, inTransit: 18, secure: 43, attention: 3 },
-    risk: { trustScore: 91.8, change: 2.4, openAlerts: 7, severity: "low" },
-    processingTrend: [
-      { label: "Mon", verified: 31, flagged: 3 },
-      { label: "Tue", verified: 38, flagged: 4 },
-      { label: "Wed", verified: 35, flagged: 2 },
-      { label: "Thu", verified: 48, flagged: 5 },
-      { label: "Fri", verified: 56, flagged: 3 },
-      { label: "Sat", verified: 42, flagged: 2 },
-      { label: "Sun", verified: 49, flagged: 4 },
-    ],
-  });
-  res.json(data);
-});
+router.get("/dashboard/summary", async (_req, res): Promise<void> => {
+  await initializePramaanxData();
+  const [documents, workforce, assets, decisions] = await Promise.all([
+    db.select().from(pramaanxDocumentsTable),
+    db.select().from(pramaanxWorkforceTable),
+    db.select().from(pramaanxAssetsTable),
+    db.select().from(pramaanxVerificationDecisionsTable),
+  ]);
 
-router.get("/documents", (req, res) => {
-  const query = ListDocumentsQueryParams.parse(req.query);
-  const search = query.q?.toLowerCase();
-  const result = documents.filter((document) => {
-    const matchesStatus = !query.status || query.status === "all" || document.status === query.status;
-    const matchesSearch =
-      !search ||
-      [document.name, document.subject, document.issuer, document.type].some((value) =>
-        value.toLowerCase().includes(search),
+  const pending = documents.filter(
+    (document) => document.status === "pending" || document.status === "review",
+  ).length;
+  const flagged = documents.filter(
+    (document) => document.status === "flagged",
+  ).length;
+  const verified = documents.filter(
+    (document) => document.status === "verified",
+  ).length;
+  const processingTimes = decisions
+    .map((decision) => {
+      const document = documents.find(
+        (item) => item.id === decision.documentId,
       );
-    return matchesStatus && matchesSearch;
-  });
-  res.json(ListDocumentsResponse.parse(result));
-});
+      return document
+        ? (decision.checkedAt.getTime() - document.submittedAt.getTime()) / 1000
+        : 0;
+    })
+    .filter((duration) => duration >= 0);
+  const openAlerts =
+    flagged +
+    assets.filter((asset) => asset.custodyStatus === "attention").length;
+  const averageTrust = average([
+    ...documents.map((document) => document.trustScore),
+    ...workforce.map((member) => member.trustScore),
+    ...assets.map((asset) => asset.trustScore),
+  ]);
 
-router.get("/documents/:id", (req, res) => {
-  const { id } = GetDocumentParams.parse(req.params);
-  const document = documents.find((item) => item.id === id);
-  if (!document) {
-    res.status(404).json({ error: "Document not found" });
-    return;
-  }
-  res.json(GetDocumentResponse.parse(getDocumentDetail(document)));
-});
-
-router.post("/documents/:id/verify", (req, res) => {
-  const { id } = VerifyDocumentParams.parse(req.params);
-  const document = documents.find((item) => item.id === id);
-  if (!document) {
-    res.status(404).json({ error: "Document not found" });
-    return;
-  }
-  document.status = document.status === "flagged" ? "review" : "verified";
-  document.trustScore = document.status === "verified" ? Math.max(document.trustScore, 91) : document.trustScore;
-  document.updatedAt = new Date().toISOString();
-  activity.unshift({
-    id: `activity-${Date.now()}`,
-    title: document.status === "verified" ? "Document verified" : "Document escalated",
-    description: `${document.name} was checked by an operations reviewer`,
-    type: "verification",
-    actor: "Operations reviewer",
-    createdAt: document.updatedAt,
-  });
   res.json(
-    VerifyDocumentResponse.parse({
-      document,
-      decision: document.status === "verified" ? "verified" : "review",
-      trustScore: document.trustScore,
-      checkedAt: document.updatedAt,
+    GetDashboardSummaryResponse.parse({
+      verification: {
+        total: documents.length,
+        verified,
+        pending,
+        flagged,
+        averageTimeSeconds: Number(average(processingTimes).toFixed(1)),
+      },
+      workforce: {
+        total: workforce.length,
+        active: workforce.filter((member) => member.status === "active").length,
+        expiringSoon: workforce.filter(
+          (member) => member.status === "expiring",
+        ).length,
+        complianceRate: workforce.length
+          ? Number(
+              (
+                (workforce.filter((member) => member.status === "active")
+                  .length /
+                  workforce.length) *
+                100
+              ).toFixed(1),
+            )
+          : 0,
+      },
+      assets: {
+        total: assets.length,
+        inTransit: assets.filter(
+          (asset) => asset.custodyStatus === "in-transit",
+        ).length,
+        secure: assets.filter((asset) => asset.custodyStatus === "secure")
+          .length,
+        attention: assets.filter(
+          (asset) => asset.custodyStatus === "attention",
+        ).length,
+      },
+      risk: {
+        trustScore: Number(averageTrust.toFixed(1)),
+        change: 0,
+        openAlerts,
+        severity: openAlerts > 5 ? "high" : openAlerts > 0 ? "medium" : "low",
+      },
+      processingTrend: getProcessingTrend(documents),
     }),
   );
 });
 
-router.post("/documents/upload", (req, res) => {
+router.get("/documents", async (req, res): Promise<void> => {
+  await initializePramaanxData();
+  const query = ListDocumentsQueryParams.parse(req.query);
+  const filters = [];
+  if (query.status && query.status !== "all") {
+    filters.push(eq(pramaanxDocumentsTable.status, query.status));
+  }
+  if (query.q) {
+    const search = `%${query.q}%`;
+    filters.push(
+      or(
+        ilike(pramaanxDocumentsTable.name, search),
+        ilike(pramaanxDocumentsTable.subject, search),
+        ilike(pramaanxDocumentsTable.issuer, search),
+        ilike(pramaanxDocumentsTable.type, search),
+      ),
+    );
+  }
+  const result = await db
+    .select()
+    .from(pramaanxDocumentsTable)
+    .where(filters.length ? and(...filters) : undefined)
+    .orderBy(desc(pramaanxDocumentsTable.updatedAt));
+  res.json(ListDocumentsResponse.parse(result));
+});
+
+router.get("/documents/:id", async (req, res): Promise<void> => {
+  await initializePramaanxData();
+  const { id } = GetDocumentParams.parse(req.params);
+  const [document] = await db
+    .select()
+    .from(pramaanxDocumentsTable)
+    .where(eq(pramaanxDocumentsTable.id, id));
+  if (!document) {
+    res.status(404).json({ error: "Document not found" });
+    return;
+  }
+  const activity = await db
+    .select()
+    .from(pramaanxActivityTable)
+    .orderBy(desc(pramaanxActivityTable.createdAt));
+  res.json(
+    GetDocumentResponse.parse(getDocumentDetail(document, activity)),
+  );
+});
+
+router.post("/documents/:id/verify", async (req, res): Promise<void> => {
+  await initializePramaanxData();
+  const { id } = VerifyDocumentParams.parse(req.params);
+  const [document] = await db
+    .select()
+    .from(pramaanxDocumentsTable)
+    .where(eq(pramaanxDocumentsTable.id, id));
+  if (!document) {
+    res.status(404).json({ error: "Document not found" });
+    return;
+  }
+
+  const status = document.status === "flagged" ? "review" : "verified";
+  const trustScore =
+    status === "verified" ? Math.max(document.trustScore, 91) : document.trustScore;
+  const checkedAt = new Date();
+  const activityId = `activity-${randomUUID()}`;
+
+  const result = await db.transaction(async (tx) => {
+    const [updatedDocument] = await tx
+      .update(pramaanxDocumentsTable)
+      .set({ status, trustScore, updatedAt: checkedAt })
+      .where(eq(pramaanxDocumentsTable.id, id))
+      .returning();
+
+    await tx.insert(pramaanxVerificationDecisionsTable).values({
+      id: `decision-${randomUUID()}`,
+      documentId: id,
+      decision: status,
+      trustScore,
+      checkedAt,
+    });
+    await tx.insert(pramaanxActivityTable).values({
+      id: activityId,
+      title: status === "verified" ? "Document verified" : "Document escalated",
+      description: `${document.name} was checked by an operations reviewer`,
+      type: "verification",
+      actor: "Operations reviewer",
+      createdAt: checkedAt,
+    });
+
+    return updatedDocument;
+  });
+
+  if (!result) {
+    res.status(404).json({ error: "Document not found" });
+    return;
+  }
+  res.json(
+    VerifyDocumentResponse.parse({
+      document: result,
+      decision: status,
+      trustScore,
+      checkedAt,
+    }),
+  );
+});
+
+router.post("/documents/upload", async (req, res): Promise<void> => {
+  await initializePramaanxData();
   const input = UploadDocumentBody.parse(req.body);
-  const timestamp = new Date().toISOString();
+  const timestamp = new Date();
   const document = {
-    id: `doc-${1050 + documents.length}`,
+    id: `doc-${randomUUID()}`,
     ...input,
     status: "pending",
     trustScore: 0,
     submittedAt: timestamp,
     updatedAt: timestamp,
   };
-  documents.unshift(document);
-  activity.unshift({
-    id: `activity-${Date.now()}`,
-    title: "Document queued",
-    description: `${input.name} entered the verification pipeline`,
-    type: "verification",
-    actor: "Operations reviewer",
-    createdAt: timestamp,
+  await db.transaction(async (tx) => {
+    await tx.insert(pramaanxDocumentsTable).values(document);
+    await tx.insert(pramaanxActivityTable).values({
+      id: `activity-${randomUUID()}`,
+      title: "Document queued",
+      description: `${input.name} entered the verification pipeline`,
+      type: "verification",
+      actor: "Operations reviewer",
+      createdAt: timestamp,
+    });
   });
   res.status(201).json(UploadDocumentResponse.parse(document));
 });
 
-router.get("/workforce", (req, res) => {
+router.get("/workforce", async (req, res): Promise<void> => {
+  await initializePramaanxData();
   const query = ListWorkforceQueryParams.parse(req.query);
-  const search = query.q?.toLowerCase();
-  const result = workforce.filter((member) => {
-    const matchesStatus = !query.status || query.status === "all" || member.status === query.status;
-    const matchesSearch =
-      !search ||
-      [member.name, member.role, member.organization].some((value) => value.toLowerCase().includes(search));
-    return matchesStatus && matchesSearch;
-  });
+  const filters = [];
+  if (query.status && query.status !== "all") {
+    filters.push(eq(pramaanxWorkforceTable.status, query.status));
+  }
+  if (query.q) {
+    const search = `%${query.q}%`;
+    filters.push(
+      or(
+        ilike(pramaanxWorkforceTable.name, search),
+        ilike(pramaanxWorkforceTable.role, search),
+        ilike(pramaanxWorkforceTable.organization, search),
+      ),
+    );
+  }
+  const result = await db
+    .select()
+    .from(pramaanxWorkforceTable)
+    .where(filters.length ? and(...filters) : undefined)
+    .orderBy(desc(pramaanxWorkforceTable.lastVerified));
   res.json(ListWorkforceResponse.parse(result));
 });
 
-router.get("/assets", (_req, res) => {
-  res.json(assets);
+router.get("/assets", async (_req, res): Promise<void> => {
+  await initializePramaanxData();
+  const result = await db
+    .select()
+    .from(pramaanxAssetsTable)
+    .orderBy(desc(pramaanxAssetsTable.lastSeen));
+  res.json(ListAssetsResponse.parse(result));
 });
 
-router.get("/activity", (req, res) => {
+router.get("/activity", async (req, res): Promise<void> => {
+  await initializePramaanxData();
   const query = ListActivityQueryParams.parse(req.query);
-  res.json(ListActivityResponse.parse(activity.slice(0, query.limit)));
+  const result = await db
+    .select()
+    .from(pramaanxActivityTable)
+    .orderBy(desc(pramaanxActivityTable.createdAt))
+    .limit(query.limit);
+  res.json(ListActivityResponse.parse(result));
 });
 
 export default router;
