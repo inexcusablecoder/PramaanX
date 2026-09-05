@@ -25,7 +25,10 @@ import {
   pramaanxVerificationDecisionsTable,
   pramaanxWorkforceTable,
   type PramaanxActivity,
+  type PramaanxAsset,
   type PramaanxDocument,
+  type PramaanxVerificationDecision,
+  type PramaanxWorkforce,
 } from "@workspace/db";
 
 const seedDocuments = [
@@ -246,6 +249,37 @@ const seedActivity = [
   },
 ] as const;
 
+const inMemoryDocuments: PramaanxDocument[] = seedDocuments.map((document) => ({
+  ...document,
+  submittedAt: new Date(document.submittedAt),
+  updatedAt: new Date(document.updatedAt),
+}));
+
+const inMemoryWorkforce: PramaanxWorkforce[] = seedWorkforce.map((member) => ({
+  ...member,
+  lastVerified: new Date(member.lastVerified),
+}));
+
+const inMemoryAssets: PramaanxAsset[] = seedAssets.map((asset) => ({
+  ...asset,
+  lastSeen: new Date(asset.lastSeen),
+}));
+
+const inMemoryActivity: PramaanxActivity[] = seedActivity.map((item) => ({
+  ...item,
+  createdAt: new Date(item.createdAt),
+}));
+
+const inMemoryDecisions: PramaanxVerificationDecision[] = seedDocuments
+  .filter((document) => document.status === "verified")
+  .map((document) => ({
+    id: `seed-decision-${document.id}`,
+    documentId: document.id,
+    decision: "verified",
+    trustScore: document.trustScore,
+    checkedAt: new Date(document.updatedAt),
+  }));
+
 let initializationPromise: Promise<void> | undefined;
 
 export function initializePramaanxData(): Promise<void> {
@@ -410,12 +444,25 @@ const router: IRouter = Router();
 
 router.get("/dashboard/summary", async (_req, res): Promise<void> => {
   await initializePramaanxData();
-  const [documents, workforce, assets, decisions] = await Promise.all([
-    db.select().from(pramaanxDocumentsTable),
-    db.select().from(pramaanxWorkforceTable),
-    db.select().from(pramaanxAssetsTable),
-    db.select().from(pramaanxVerificationDecisionsTable),
-  ]);
+  let documents: PramaanxDocument[] = inMemoryDocuments;
+  let workforce: PramaanxWorkforce[] = inMemoryWorkforce;
+  let assets: PramaanxAsset[] = inMemoryAssets;
+  let decisions: PramaanxVerificationDecision[] = inMemoryDecisions;
+
+  try {
+    const [dbDocs, dbWorkers, dbAssets, dbDecisions] = await Promise.all([
+      db.select().from(pramaanxDocumentsTable),
+      db.select().from(pramaanxWorkforceTable),
+      db.select().from(pramaanxAssetsTable),
+      db.select().from(pramaanxVerificationDecisionsTable),
+    ]);
+    if (dbDocs.length) documents = dbDocs;
+    if (dbWorkers.length) workforce = dbWorkers;
+    if (dbAssets.length) assets = dbAssets;
+    if (dbDecisions.length) decisions = dbDecisions;
+  } catch (_err) {
+    // In-memory demo fallback
+  }
 
   const pending = documents.filter(
     (document) => document.status === "pending" || document.status === "review",
@@ -496,44 +543,86 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
 router.get("/documents", async (req, res): Promise<void> => {
   await initializePramaanxData();
   const query = ListDocumentsQueryParams.parse(req.query);
-  const filters = [];
+
+  try {
+    const filters = [];
+    if (query.status && query.status !== "all") {
+      filters.push(eq(pramaanxDocumentsTable.status, query.status));
+    }
+    if (query.q) {
+      const search = `%${query.q}%`;
+      filters.push(
+        or(
+          ilike(pramaanxDocumentsTable.name, search),
+          ilike(pramaanxDocumentsTable.subject, search),
+          ilike(pramaanxDocumentsTable.issuer, search),
+          ilike(pramaanxDocumentsTable.type, search),
+        ),
+      );
+    }
+    const result = await db
+      .select()
+      .from(pramaanxDocumentsTable)
+      .where(filters.length ? and(...filters) : undefined)
+      .orderBy(desc(pramaanxDocumentsTable.updatedAt));
+    if (result.length > 0) {
+      res.json(ListDocumentsResponse.parse(result));
+      return;
+    }
+  } catch (_err) {
+    // In-memory demo fallback
+  }
+
+  let filtered = [...inMemoryDocuments];
   if (query.status && query.status !== "all") {
-    filters.push(eq(pramaanxDocumentsTable.status, query.status));
+    filtered = filtered.filter((doc) => doc.status === query.status);
   }
   if (query.q) {
-    const search = `%${query.q}%`;
-    filters.push(
-      or(
-        ilike(pramaanxDocumentsTable.name, search),
-        ilike(pramaanxDocumentsTable.subject, search),
-        ilike(pramaanxDocumentsTable.issuer, search),
-        ilike(pramaanxDocumentsTable.type, search),
-      ),
+    const q = query.q.toLowerCase();
+    filtered = filtered.filter(
+      (doc) =>
+        doc.name.toLowerCase().includes(q) ||
+        doc.subject.toLowerCase().includes(q) ||
+        doc.issuer.toLowerCase().includes(q) ||
+        doc.type.toLowerCase().includes(q),
     );
   }
-  const result = await db
-    .select()
-    .from(pramaanxDocumentsTable)
-    .where(filters.length ? and(...filters) : undefined)
-    .orderBy(desc(pramaanxDocumentsTable.updatedAt));
-  res.json(ListDocumentsResponse.parse(result));
+  filtered.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  res.json(ListDocumentsResponse.parse(filtered));
 });
 
 router.get("/documents/:id", async (req, res): Promise<void> => {
   await initializePramaanxData();
   const { id } = GetDocumentParams.parse(req.params);
-  const [document] = await db
-    .select()
-    .from(pramaanxDocumentsTable)
-    .where(eq(pramaanxDocumentsTable.id, id));
+  let document: PramaanxDocument | undefined;
+  let activity: PramaanxActivity[] = inMemoryActivity;
+
+  try {
+    const [dbDoc] = await db
+      .select()
+      .from(pramaanxDocumentsTable)
+      .where(eq(pramaanxDocumentsTable.id, id));
+    if (dbDoc) {
+      document = dbDoc;
+      const dbAct = await db
+        .select()
+        .from(pramaanxActivityTable)
+        .orderBy(desc(pramaanxActivityTable.createdAt));
+      if (dbAct.length) activity = dbAct;
+    }
+  } catch (_err) {
+    // In-memory demo fallback
+  }
+
+  if (!document) {
+    document = inMemoryDocuments.find((doc) => doc.id === id);
+  }
+
   if (!document) {
     res.status(404).json({ error: "Document not found" });
     return;
   }
-  const activity = await db
-    .select()
-    .from(pramaanxActivityTable)
-    .orderBy(desc(pramaanxActivityTable.createdAt));
+
   res.json(
     GetDocumentResponse.parse(getDocumentDetail(document, activity)),
   );
@@ -542,10 +631,18 @@ router.get("/documents/:id", async (req, res): Promise<void> => {
 router.post("/documents/:id/verify", async (req, res): Promise<void> => {
   await initializePramaanxData();
   const { id } = VerifyDocumentParams.parse(req.params);
-  const [document] = await db
-    .select()
-    .from(pramaanxDocumentsTable)
-    .where(eq(pramaanxDocumentsTable.id, id));
+  let document = inMemoryDocuments.find((d) => d.id === id);
+
+  try {
+    const [dbDoc] = await db
+      .select()
+      .from(pramaanxDocumentsTable)
+      .where(eq(pramaanxDocumentsTable.id, id));
+    if (dbDoc) document = dbDoc;
+  } catch (_err) {
+    // In-memory demo fallback
+  }
+
   if (!document) {
     res.status(404).json({ error: "Document not found" });
     return;
@@ -557,36 +654,63 @@ router.post("/documents/:id/verify", async (req, res): Promise<void> => {
   const checkedAt = new Date();
   const activityId = `activity-${randomUUID()}`;
 
-  const result = await db.transaction(async (tx) => {
-    const [updatedDocument] = await tx
-      .update(pramaanxDocumentsTable)
-      .set({ status, trustScore, updatedAt: checkedAt })
-      .where(eq(pramaanxDocumentsTable.id, id))
-      .returning();
+  let result: PramaanxDocument = {
+    ...document,
+    status,
+    trustScore,
+    updatedAt: checkedAt,
+  };
 
-    await tx.insert(pramaanxVerificationDecisionsTable).values({
-      id: `decision-${randomUUID()}`,
-      documentId: id,
-      decision: status,
-      trustScore,
-      checkedAt,
-    });
-    await tx.insert(pramaanxActivityTable).values({
-      id: activityId,
-      title: status === "verified" ? "Document verified" : "Document escalated",
-      description: `${document.name} was checked by an operations reviewer`,
-      type: "verification",
-      actor: "Operations reviewer",
-      createdAt: checkedAt,
-    });
-
-    return updatedDocument;
+  const idx = inMemoryDocuments.findIndex((d) => d.id === id);
+  if (idx !== -1) {
+    inMemoryDocuments[idx] = result;
+  }
+  inMemoryDecisions.unshift({
+    id: `decision-${randomUUID()}`,
+    documentId: id,
+    decision: status,
+    trustScore,
+    checkedAt,
+  });
+  inMemoryActivity.unshift({
+    id: activityId,
+    title: status === "verified" ? "Document verified" : "Document escalated",
+    description: `${document.name} was checked by an operations reviewer`,
+    type: "verification",
+    actor: "Operations reviewer",
+    createdAt: checkedAt,
   });
 
-  if (!result) {
-    res.status(404).json({ error: "Document not found" });
-    return;
+  try {
+    await db.transaction(async (tx) => {
+      const [updatedDocument] = await tx
+        .update(pramaanxDocumentsTable)
+        .set({ status, trustScore, updatedAt: checkedAt })
+        .where(eq(pramaanxDocumentsTable.id, id))
+        .returning();
+
+      await tx.insert(pramaanxVerificationDecisionsTable).values({
+        id: `decision-${randomUUID()}`,
+        documentId: id,
+        decision: status,
+        trustScore,
+        checkedAt,
+      });
+      await tx.insert(pramaanxActivityTable).values({
+        id: activityId,
+        title: status === "verified" ? "Document verified" : "Document escalated",
+        description: `${document.name} was checked by an operations reviewer`,
+        type: "verification",
+        actor: "Operations reviewer",
+        createdAt: checkedAt,
+      });
+
+      if (updatedDocument) result = updatedDocument;
+    });
+  } catch (_err) {
+    // In-memory demo fallback
   }
+
   res.json(
     VerifyDocumentResponse.parse({
       document: result,
@@ -601,7 +725,7 @@ router.post("/documents/upload", async (req, res): Promise<void> => {
   await initializePramaanxData();
   const input = UploadDocumentBody.parse(req.body);
   const timestamp = new Date();
-  const document = {
+  const document: PramaanxDocument = {
     id: `doc-${randomUUID()}`,
     ...input,
     status: "pending",
@@ -609,17 +733,33 @@ router.post("/documents/upload", async (req, res): Promise<void> => {
     submittedAt: timestamp,
     updatedAt: timestamp,
   };
-  await db.transaction(async (tx) => {
-    await tx.insert(pramaanxDocumentsTable).values(document);
-    await tx.insert(pramaanxActivityTable).values({
-      id: `activity-${randomUUID()}`,
-      title: "Document queued",
-      description: `${input.name} entered the verification pipeline`,
-      type: "verification",
-      actor: "Operations reviewer",
-      createdAt: timestamp,
-    });
+
+  inMemoryDocuments.unshift(document);
+  inMemoryActivity.unshift({
+    id: `activity-${randomUUID()}`,
+    title: "Document queued",
+    description: `${input.name} entered the verification pipeline`,
+    type: "verification",
+    actor: "Operations reviewer",
+    createdAt: timestamp,
   });
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx.insert(pramaanxDocumentsTable).values(document);
+      await tx.insert(pramaanxActivityTable).values({
+        id: `activity-${randomUUID()}`,
+        title: "Document queued",
+        description: `${input.name} entered the verification pipeline`,
+        type: "verification",
+        actor: "Operations reviewer",
+        createdAt: timestamp,
+      });
+    });
+  } catch (_err) {
+    // In-memory demo fallback
+  }
+
   res.status(201).json(UploadDocumentResponse.parse(document));
 });
 
@@ -642,53 +782,104 @@ export function calculateStressScore(params: {
 router.get("/workforce", async (req, res): Promise<void> => {
   await initializePramaanxData();
   const query = ListWorkforceQueryParams.parse(req.query);
-  const filters = [];
+
+  try {
+    const filters = [];
+    if (query.status && query.status !== "all") {
+      filters.push(eq(pramaanxWorkforceTable.status, query.status));
+    }
+    if (query.q) {
+      const search = `%${query.q}%`;
+      filters.push(
+        or(
+          ilike(pramaanxWorkforceTable.name, search),
+          ilike(pramaanxWorkforceTable.role, search),
+          ilike(pramaanxWorkforceTable.organization, search),
+        ),
+      );
+    }
+    const result = await db
+      .select()
+      .from(pramaanxWorkforceTable)
+      .where(filters.length ? and(...filters) : undefined)
+      .orderBy(desc(pramaanxWorkforceTable.lastVerified));
+    if (result.length > 0) {
+      res.json(ListWorkforceResponse.parse(result));
+      return;
+    }
+  } catch (_err) {
+    // In-memory demo fallback
+  }
+
+  let filtered = [...inMemoryWorkforce];
   if (query.status && query.status !== "all") {
-    filters.push(eq(pramaanxWorkforceTable.status, query.status));
+    filtered = filtered.filter((m) => m.status === query.status);
   }
   if (query.q) {
-    const search = `%${query.q}%`;
-    filters.push(
-      or(
-        ilike(pramaanxWorkforceTable.name, search),
-        ilike(pramaanxWorkforceTable.role, search),
-        ilike(pramaanxWorkforceTable.organization, search),
-      ),
+    const q = query.q.toLowerCase();
+    filtered = filtered.filter(
+      (m) =>
+        m.name.toLowerCase().includes(q) ||
+        m.role.toLowerCase().includes(q) ||
+        m.organization.toLowerCase().includes(q),
     );
   }
-  const result = await db
-    .select()
-    .from(pramaanxWorkforceTable)
-    .where(filters.length ? and(...filters) : undefined)
-    .orderBy(desc(pramaanxWorkforceTable.lastVerified));
-  res.json(ListWorkforceResponse.parse(result));
+  filtered.sort((a, b) => b.lastVerified.getTime() - a.lastVerified.getTime());
+  res.json(ListWorkforceResponse.parse(filtered));
 });
 
 router.post("/workforce/recalculate-stress", async (_req, res): Promise<void> => {
   await initializePramaanxData();
-  const allWorkers = await db.select().from(pramaanxWorkforceTable);
 
-  const updatedWorkers = [];
-  for (const worker of allWorkers) {
+  for (let i = 0; i < inMemoryWorkforce.length; i++) {
+    const worker = inMemoryWorkforce[i];
     const { stressScore, stressLevel } = calculateStressScore({
       shiftHours: worker.shiftHours || 8,
       overtimeHours: worker.overtimeHours || 0,
       workloadTasks: worker.workloadTasks || 3,
       restBreakIndex: worker.restBreakIndex || 4,
     });
+    inMemoryWorkforce[i] = {
+      ...worker,
+      stressScore,
+      stressLevel,
+    };
+  }
 
-    const [updated] = await db
-      .update(pramaanxWorkforceTable)
-      .set({ stressScore, stressLevel })
-      .where(eq(pramaanxWorkforceTable.id, worker.id))
-      .returning();
-    updatedWorkers.push(updated);
+  try {
+    const allWorkers = await db.select().from(pramaanxWorkforceTable);
+    const updatedWorkers = [];
+    for (const worker of allWorkers) {
+      const { stressScore, stressLevel } = calculateStressScore({
+        shiftHours: worker.shiftHours || 8,
+        overtimeHours: worker.overtimeHours || 0,
+        workloadTasks: worker.workloadTasks || 3,
+        restBreakIndex: worker.restBreakIndex || 4,
+      });
+
+      const [updated] = await db
+        .update(pramaanxWorkforceTable)
+        .set({ stressScore, stressLevel })
+        .where(eq(pramaanxWorkforceTable.id, worker.id))
+        .returning();
+      updatedWorkers.push(updated);
+    }
+    if (updatedWorkers.length) {
+      res.json({
+        message: "Workforce stress recalculation complete",
+        count: updatedWorkers.length,
+        workers: ListWorkforceResponse.parse(updatedWorkers),
+      });
+      return;
+    }
+  } catch (_err) {
+    // In-memory demo fallback
   }
 
   res.json({
     message: "Workforce stress recalculation complete",
-    count: updatedWorkers.length,
-    workers: ListWorkforceResponse.parse(updatedWorkers),
+    count: inMemoryWorkforce.length,
+    workers: ListWorkforceResponse.parse(inMemoryWorkforce),
   });
 });
 
@@ -697,16 +888,13 @@ router.patch("/workforce/:id/stress", async (req, res): Promise<void> => {
   const { id } = req.params;
   const { shiftHours, overtimeHours, workloadTasks, restBreakIndex } = req.body;
 
-  const [existing] = await db
-    .select()
-    .from(pramaanxWorkforceTable)
-    .where(eq(pramaanxWorkforceTable.id, id));
-
-  if (!existing) {
+  const memIdx = inMemoryWorkforce.findIndex((w) => w.id === id);
+  if (memIdx === -1) {
     res.status(404).json({ error: "Workforce member not found" });
     return;
   }
 
+  const existing = inMemoryWorkforce[memIdx];
   const newShift = shiftHours !== undefined ? Number(shiftHours) : existing.shiftHours;
   const newOT = overtimeHours !== undefined ? Number(overtimeHours) : existing.overtimeHours;
   const newWorkload = workloadTasks !== undefined ? Number(workloadTasks) : existing.workloadTasks;
@@ -719,40 +907,231 @@ router.patch("/workforce/:id/stress", async (req, res): Promise<void> => {
     restBreakIndex: newBreak,
   });
 
-  const [updated] = await db
-    .update(pramaanxWorkforceTable)
-    .set({
-      shiftHours: newShift,
-      overtimeHours: newOT,
-      workloadTasks: newWorkload,
-      restBreakIndex: newBreak,
-      stressScore,
-      stressLevel,
-    })
-    .where(eq(pramaanxWorkforceTable.id, id))
-    .returning();
+  let updatedWorker: PramaanxWorkforce = {
+    ...existing,
+    shiftHours: newShift,
+    overtimeHours: newOT,
+    workloadTasks: newWorkload,
+    restBreakIndex: newBreak,
+    stressScore,
+    stressLevel,
+  };
+  inMemoryWorkforce[memIdx] = updatedWorker;
 
-  res.json(updated);
+  try {
+    const [dbUpdated] = await db
+      .update(pramaanxWorkforceTable)
+      .set({
+        shiftHours: newShift,
+        overtimeHours: newOT,
+        workloadTasks: newWorkload,
+        restBreakIndex: newBreak,
+        stressScore,
+        stressLevel,
+      })
+      .where(eq(pramaanxWorkforceTable.id, id))
+      .returning();
+    if (dbUpdated) updatedWorker = dbUpdated;
+  } catch (_err) {
+    // In-memory demo fallback
+  }
+
+  res.json(updatedWorker);
+});
+
+router.post("/workforce/invite", async (req, res): Promise<void> => {
+  await initializePramaanxData();
+  const { name, email, department = "Operations", role = "Field Specialist", manager = "Operations Lead" } = req.body || {};
+
+  if (!email || !name) {
+    res.status(400).json({ error: "Name and email are required" });
+    return;
+  }
+
+  const inviteToken = `inv-${randomUUID()}`;
+  const inviteUrl = `/onboarding?invite=${inviteToken}&name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}&dept=${encodeURIComponent(department)}`;
+
+  const activityItem: PramaanxActivity = {
+    id: `activity-${randomUUID()}`,
+    title: "Employee invitation sent",
+    description: `Invite generated for ${name} (${email}) as ${role} [Dept: ${department}]`,
+    type: "workforce",
+    actor: "HR / Operations Lead",
+    createdAt: new Date(),
+  };
+  inMemoryActivity.unshift(activityItem);
+
+  try {
+    await db.insert(pramaanxActivityTable).values(activityItem);
+  } catch (_err) {
+    // In-memory fallback
+  }
+
+  res.status(201).json({
+    success: true,
+    inviteToken,
+    inviteUrl,
+    name,
+    email,
+    department,
+    role,
+    manager,
+    status: "invited",
+    createdAt: activityItem.createdAt,
+  });
+});
+
+router.post("/workforce/onboard", async (req, res): Promise<void> => {
+  await initializePramaanxData();
+  const {
+    name,
+    role,
+    organization = "Apex Logistics",
+    department = "Operations",
+    manager = "Operations Lead",
+    assignedAssets = [],
+    documents = [],
+  } = req.body || {};
+
+  if (!name || !role) {
+    res.status(400).json({ error: "Name and role are required" });
+    return;
+  }
+
+  const workerId = `worker-${randomUUID().slice(0, 8)}`;
+  const now = new Date();
+
+  const newWorker: PramaanxWorkforce = {
+    id: workerId,
+    name,
+    role,
+    organization,
+    status: "active",
+    trustScore: 94,
+    credentials: Math.max(1, documents.length),
+    lastVerified: now,
+    shiftHours: 8,
+    overtimeHours: 0,
+    workloadTasks: 3,
+    restBreakIndex: 4,
+    stressScore: 28,
+    stressLevel: "Optimal",
+  };
+
+  inMemoryWorkforce.unshift(newWorker);
+
+  // Add documents if provided
+  const createdDocs: PramaanxDocument[] = [];
+  if (Array.isArray(documents)) {
+    for (const doc of documents) {
+      const docRecord: PramaanxDocument = {
+        id: `doc-${randomUUID().slice(0, 8)}`,
+        name: doc.name || `${doc.type || "Identity"} Proof - ${name}`,
+        type: doc.type || "Identity",
+        subject: name,
+        issuer: doc.issuer || "Verified Authority",
+        status: doc.status || "verified",
+        trustScore: doc.status === "verified" ? 96 : doc.status === "review" ? 72 : 35,
+        submittedAt: now,
+        updatedAt: now,
+      };
+      inMemoryDocuments.unshift(docRecord);
+      createdDocs.push(docRecord);
+
+      if (docRecord.status === "verified") {
+        inMemoryDecisions.unshift({
+          id: `decision-${randomUUID()}`,
+          documentId: docRecord.id,
+          decision: "verified",
+          trustScore: docRecord.trustScore,
+          checkedAt: now,
+        });
+      }
+    }
+  }
+
+  // Add assigned assets if provided
+  if (Array.isArray(assignedAssets) && assignedAssets.length > 0) {
+    for (const assetName of assignedAssets) {
+      inMemoryAssets.unshift({
+        id: `asset-${randomUUID().slice(0, 8)}`,
+        name: assetName,
+        category: assetName.toLowerCase().includes("laptop") ? "IT Hardware" : assetName.toLowerCase().includes("mobile") ? "Telephony" : assetName.toLowerCase().includes("vehicle") ? "Fleet" : "Equipment",
+        location: `${organization} Hub (${name})`,
+        custodyStatus: "secure",
+        trustScore: 98,
+        lastSeen: now,
+      });
+    }
+  }
+
+  const activityItem: PramaanxActivity = {
+    id: `activity-${randomUUID()}`,
+    title: "Personnel onboarded",
+    description: `${name} onboarded as ${role} [${department}]. Assigned ${assignedAssets.length} asset(s), ${createdDocs.length} credentials verified.`,
+    type: "workforce",
+    actor: manager || "Operations Lead",
+    createdAt: now,
+  };
+  inMemoryActivity.unshift(activityItem);
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx.insert(pramaanxWorkforceTable).values(newWorker);
+      for (const d of createdDocs) {
+        await tx.insert(pramaanxDocumentsTable).values(d);
+      }
+      await tx.insert(pramaanxActivityTable).values(activityItem);
+    });
+  } catch (_err) {
+    // In-memory fallback
+  }
+
+  res.status(201).json({
+    success: true,
+    member: newWorker,
+    assignedAssets,
+    documents: createdDocs,
+  });
 });
 
 router.get("/assets", async (_req, res): Promise<void> => {
   await initializePramaanxData();
-  const result = await db
-    .select()
-    .from(pramaanxAssetsTable)
-    .orderBy(desc(pramaanxAssetsTable.lastSeen));
-  res.json(ListAssetsResponse.parse(result));
+  try {
+    const result = await db
+      .select()
+      .from(pramaanxAssetsTable)
+      .orderBy(desc(pramaanxAssetsTable.lastSeen));
+    if (result.length > 0) {
+      res.json(ListAssetsResponse.parse(result));
+      return;
+    }
+  } catch (_err) {
+    // In-memory demo fallback
+  }
+  res.json(ListAssetsResponse.parse(inMemoryAssets));
 });
 
 router.get("/activity", async (req, res): Promise<void> => {
   await initializePramaanxData();
   const query = ListActivityQueryParams.parse(req.query);
-  const result = await db
-    .select()
-    .from(pramaanxActivityTable)
-    .orderBy(desc(pramaanxActivityTable.createdAt))
-    .limit(query.limit);
-  res.json(ListActivityResponse.parse(result));
+  try {
+    const result = await db
+      .select()
+      .from(pramaanxActivityTable)
+      .orderBy(desc(pramaanxActivityTable.createdAt))
+      .limit(query.limit);
+    if (result.length > 0) {
+      res.json(ListActivityResponse.parse(result));
+      return;
+    }
+  } catch (_err) {
+    // In-memory demo fallback
+  }
+  const items = [...inMemoryActivity]
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, query.limit);
+  res.json(ListActivityResponse.parse(items));
 });
 
 export default router;

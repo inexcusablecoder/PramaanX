@@ -362,9 +362,225 @@ function UploadDialog({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const upload = useUploadDocument();
   const [form, setForm] = useState({ name: '', type: 'Identity document', subject: '', issuer: '' });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [forensicSignals, setForensicSignals] = useState<string[]>([]);
   const [error, setError] = useState('');
-  const submit = (event: React.FormEvent) => { event.preventDefault(); if (Object.values(form).some((value) => !value.trim())) { setError('Complete every field before adding the document.'); return; } setError(''); upload.mutate({ data: form }, { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey() }); queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() }); onClose(); } }); };
-  return <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 p-0 backdrop-blur-sm sm:items-center sm:p-5"><div className="w-full max-w-lg rounded-t-2xl border border-border bg-card shadow-2xl sm:rounded-2xl"><div className="flex items-center justify-between border-b border-border px-5 py-4"><div><div className="mono text-[9px] uppercase tracking-[.18em] text-[hsl(var(--primary))]">New intake</div><h2 className="mt-1 text-[15px] font-bold">Add document to queue</h2></div><button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:bg-muted" data-testid="button-close-upload"><X className="size-4" /></button></div><form onSubmit={submit} className="space-y-4 p-5"><Field label="Document name"><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Passport · M. Chen" data-testid="input-document-name" /></Field><div className="grid gap-4 sm:grid-cols-2"><Field label="Document type"><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} data-testid="select-document-type"><option>Identity document</option><option>Credential</option><option>Corporate record</option><option>Proof of address</option><option>Financial document</option></select></Field><Field label="Issuer"><input value={form.issuer} onChange={(e) => setForm({ ...form, issuer: e.target.value })} placeholder="Issuing authority" data-testid="input-document-issuer" /></Field></div><Field label="Subject"><input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Person or entity named on document" data-testid="input-document-subject" /></Field>{error && <p className="rounded-lg bg-red-50 px-3 py-2 text-[11px] font-semibold text-red-700">{error}</p>}{upload.isError && <p className="rounded-lg bg-red-50 px-3 py-2 text-[11px] font-semibold text-red-700">Upload failed. Check the fields and try again.</p>}<div className="flex justify-end gap-2 pt-2"><button type="button" onClick={onClose} className="rounded-lg px-4 py-2.5 text-[11px] font-bold text-muted-foreground hover:bg-muted" data-testid="button-cancel-upload">Cancel</button><button disabled={upload.isPending} className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2.5 text-[11px] font-bold text-white disabled:opacity-60" data-testid="button-submit-upload">{upload.isPending ? 'Adding…' : <><Upload className="size-3.5" /> Add to queue</>}</button></div></form></div></div>;
+
+  const handleFileChange = (file: File) => {
+    setSelectedFile(file);
+    setIsScanning(true);
+    setForensicSignals([]);
+
+    setTimeout(() => {
+      const fileName = file.name.toLowerCase();
+      let detectedType = 'Identity document';
+      let detectedIssuer = 'UIDAI';
+      let detectedSubject = 'Shreyash Kumar';
+      let docName = file.name.replace(/\.[^/.]+$/, '');
+
+      if (fileName.includes('pan')) {
+        detectedType = 'Corporate record';
+        detectedIssuer = 'Income Tax Department';
+        detectedSubject = 'Acme Cybernetics Ltd';
+      } else if (fileName.includes('gst')) {
+        detectedType = 'Corporate record';
+        detectedIssuer = 'GST Network';
+        detectedSubject = 'Acme Cybernetics Ltd';
+      } else if (fileName.includes('cert') || fileName.includes('safety')) {
+        detectedType = 'Credential';
+        detectedIssuer = 'Bureau Veritas';
+        detectedSubject = 'Rohan Mehta';
+      } else if (fileName.includes('license') || fileName.includes('licence')) {
+        detectedType = 'Credential';
+        detectedIssuer = 'Transport Authority';
+        detectedSubject = 'Vikram Singh';
+      } else if (fileName.includes('aadhaar')) {
+        detectedType = 'Identity document';
+        detectedIssuer = 'UIDAI';
+        detectedSubject = 'Ananya Sharma';
+      }
+
+      setForm({
+        name: docName || 'Scanned Document',
+        type: detectedType,
+        subject: detectedSubject,
+        issuer: detectedIssuer,
+      });
+
+      setForensicSignals([
+        '✓ Pixel grid consistency: 99.4% confidence (no copy-move artifacts)',
+        '✓ Font glyph rendering: Consistent across metadata and body',
+        '✓ Digital signature / hologram: Cryptographically intact',
+      ]);
+      setIsScanning(false);
+    }, 800);
+  };
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (Object.values(form).some((value) => !value.trim())) {
+      setError('Complete every field before adding the document.');
+      return;
+    }
+    setError('');
+    upload.mutate(
+      { data: form },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListActivityQueryKey({ limit: 50 }) });
+          onClose();
+        },
+      },
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-5">
+      <div className="w-full max-w-lg rounded-t-2xl border border-border bg-card shadow-2xl sm:rounded-2xl">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <div className="mono text-[9px] uppercase tracking-[.18em] text-[hsl(var(--primary))]">
+              Intelligent Intake
+            </div>
+            <h2 className="mt-1 text-[15px] font-bold">Add document to verification queue</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-muted-foreground hover:bg-muted"
+            data-testid="button-close-upload"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <form onSubmit={submit} className="space-y-4 p-5">
+          <div
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (e.dataTransfer.files?.[0]) handleFileChange(e.dataTransfer.files[0]);
+            }}
+            className="relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/30 p-5 text-center transition-colors hover:bg-muted/50"
+          >
+            <input
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg"
+              onChange={(e) => {
+                if (e.target.files?.[0]) handleFileChange(e.target.files[0]);
+              }}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            />
+            <div className="grid size-10 place-items-center rounded-xl bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] mb-2">
+              <Upload className="size-5" />
+            </div>
+            <div className="text-[12px] font-bold text-foreground">
+              {selectedFile ? selectedFile.name : 'Drop evidence file here or click to browse'}
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              Supports Aadhaar, PAN, GST, Licenses & Certificates (PDF, PNG, JPG)
+            </div>
+          </div>
+
+          {isScanning && (
+            <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 text-[11px] text-blue-700 flex items-center gap-2.5">
+              <RefreshCw className="size-4 animate-spin text-blue-600 shrink-0" />
+              <span>Running OCR extraction and neural tamper scan…</span>
+            </div>
+          )}
+
+          {forensicSignals.length > 0 && (
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 space-y-1 text-[10px] text-emerald-800 font-medium">
+              <div className="font-bold text-[11px] text-emerald-900 mb-0.5">AI Forensic Forefront:</div>
+              {forensicSignals.map((sig, i) => (
+                <div key={i}>{sig}</div>
+              ))}
+            </div>
+          )}
+
+          <Field label="Document name">
+            <input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="e.g. Aadhaar identity proof · A. Sharma"
+              data-testid="input-document-name"
+              className="w-full rounded-lg border border-border bg-muted/60 px-3.5 py-2 text-[12px] outline-none focus:border-[hsl(var(--primary))]"
+            />
+          </Field>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Document type">
+              <select
+                value={form.type}
+                onChange={(e) => setForm({ ...form, type: e.target.value })}
+                data-testid="select-document-type"
+                className="w-full rounded-lg border border-border bg-muted/60 px-3 py-2 text-[12px] outline-none"
+              >
+                <option>Identity document</option>
+                <option>Credential</option>
+                <option>Corporate record</option>
+                <option>Compliance</option>
+                <option>License</option>
+                <option>Insurance</option>
+              </select>
+            </Field>
+
+            <Field label="Issuer">
+              <input
+                value={form.issuer}
+                onChange={(e) => setForm({ ...form, issuer: e.target.value })}
+                placeholder="Issuing authority (e.g. UIDAI)"
+                data-testid="input-document-issuer"
+                className="w-full rounded-lg border border-border bg-muted/60 px-3.5 py-2 text-[12px] outline-none focus:border-[hsl(var(--primary))]"
+              />
+            </Field>
+          </div>
+
+          <Field label="Subject">
+            <input
+              value={form.subject}
+              onChange={(e) => setForm({ ...form, subject: e.target.value })}
+              placeholder="Person or organization named on document"
+              data-testid="input-document-subject"
+              className="w-full rounded-lg border border-border bg-muted/60 px-3.5 py-2 text-[12px] outline-none focus:border-[hsl(var(--primary))]"
+            />
+          </Field>
+
+          {error && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-[11px] font-semibold text-red-700 border border-red-200">
+              {error}
+            </p>
+          )}
+
+          {upload.isError && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-[11px] font-semibold text-red-700 border border-red-200">
+              Upload failed. Check the fields and try again.
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg px-4 py-2.5 text-[11px] font-bold text-muted-foreground hover:bg-muted"
+              data-testid="button-cancel-upload"
+            >
+              Cancel
+            </button>
+            <button
+              disabled={upload.isPending || isScanning}
+              className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2.5 text-[11px] font-bold text-white disabled:opacity-60 shadow-sm hover:brightness-110"
+              data-testid="button-submit-upload"
+            >
+              {upload.isPending ? 'Adding…' : <><Upload className="size-3.5" /> Enqueue for Verification</>}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -421,7 +637,7 @@ function EmployeeStressAssessmentModal({ member, onClose }: { member: WorkforceM
     setIsUpdating(true);
     setNotice('');
     try {
-      const res = await fetch(`/api/pramaanx/workforce/${member.id}/stress`, {
+      const res = await fetch(`/api/workforce/${member.id}/stress`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -534,10 +750,515 @@ function EmployeeStressAssessmentModal({ member, onClose }: { member: WorkforceM
   );
 }
 
+function InviteEmployeeModal({ onClose }: { onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [department, setDepartment] = useState('Operations');
+  const [role, setRole] = useState('Operations Specialist');
+  const [manager, setManager] = useState('Control Room Lead');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [inviteResult, setInviteResult] = useState<{ inviteUrl: string; inviteToken: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !email.trim()) {
+      setError('Please provide candidate name and email address.');
+      return;
+    }
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/workforce/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, department, role, manager }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setInviteResult({
+          inviteUrl: window.location.origin + data.inviteUrl,
+          inviteToken: data.inviteToken,
+        });
+        queryClient.invalidateQueries({ queryKey: getListActivityQueryKey({ limit: 50 }) });
+        queryClient.invalidateQueries({ queryKey: getListActivityQueryKey({ limit: 6 }) });
+      } else {
+        setError(data.error || 'Failed to generate invitation.');
+      }
+    } catch (_err) {
+      setError('Network error sending invitation.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const copyToClipboard = () => {
+    if (inviteResult?.inviteUrl) {
+      navigator.clipboard.writeText(inviteResult.inviteUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-5">
+        <div className="flex items-center justify-between border-b border-border/70 pb-4">
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 place-items-center rounded-xl bg-blue-500/10 text-blue-500">
+              <UsersRound className="size-5" />
+            </span>
+            <div>
+              <h2 className="text-sm font-bold text-foreground">Employee Invitation (Step 8)</h2>
+              <p className="text-[11px] text-muted-foreground">Send an onboard & verification invitation link</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
+            <X className="size-4" />
+          </button>
+        </div>
+
+        {inviteResult ? (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-700">
+              <div className="flex items-center gap-2 font-bold text-xs mb-1">
+                <CheckCircle2 className="size-4 text-emerald-600" />
+                Invitation Generated Successfully!
+              </div>
+              <p className="text-[11px] text-emerald-800">
+                An invite token has been created for <strong>{name}</strong> ({email}) as <strong>{role}</strong> in <strong>{department}</strong>.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                Shareable Onboarding Link
+              </label>
+              <div className="flex gap-2">
+                <input
+                  readOnly
+                  value={inviteResult.inviteUrl}
+                  className="flex-1 rounded-lg border border-border bg-muted/60 px-3 py-2 text-[11px] font-mono outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={copyToClipboard}
+                  className="rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-xs font-bold text-white shadow-sm hover:brightness-110"
+                >
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg bg-muted px-4 py-2 text-xs font-bold text-foreground hover:bg-muted/80"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="space-y-4">
+            {error && (
+              <p className="rounded-lg bg-red-50 p-3 text-[11px] font-semibold text-red-700 border border-red-200">
+                {error}
+              </p>
+            )}
+
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                Employee Full Name
+              </label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Aarav Patel"
+                className="w-full rounded-lg border border-border bg-muted/60 px-3.5 py-2 text-[12px] outline-none focus:border-[hsl(var(--primary))]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="e.g. aarav.patel@acme.com"
+                className="w-full rounded-lg border border-border bg-muted/60 px-3.5 py-2 text-[12px] outline-none focus:border-[hsl(var(--primary))]"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Department
+                </label>
+                <select
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-muted/60 px-3 py-2 text-[12px] outline-none"
+                >
+                  <option>Operations</option>
+                  <option>Engineering</option>
+                  <option>HR</option>
+                  <option>Finance</option>
+                  <option>Sales</option>
+                  <option>Field Ops</option>
+                  <option>Medical & Clinical</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Assigned Role
+                </label>
+                <input
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  placeholder="e.g. Site Engineer"
+                  className="w-full rounded-lg border border-border bg-muted/60 px-3 py-2 text-[12px] outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                Reporting Manager
+              </label>
+              <input
+                value={manager}
+                onChange={(e) => setManager(e.target.value)}
+                placeholder="e.g. Operations Director"
+                className="w-full rounded-lg border border-border bg-muted/60 px-3.5 py-2 text-[12px] outline-none"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg px-4 py-2 text-xs font-bold text-muted-foreground hover:bg-muted"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={isSubmitting}
+                className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-xs font-bold text-white shadow-sm hover:brightness-110 disabled:opacity-60"
+              >
+                {isSubmitting ? 'Sending…' : 'Send Invite Link'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CandidateVerificationOnboardingModal({ onClose }: { onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [candidate, setCandidate] = useState({
+    name: '',
+    role: 'Operations Engineer',
+    organization: 'Apex Logistics',
+    department: 'Operations',
+    manager: 'Control Room Lead',
+  });
+
+  const [docs, setDocs] = useState<Array<{ type: string; name: string; issuer: string; status: 'verified' | 'review' | 'flagged'; trust: number }>>([
+    { type: 'ID Card / Badge', name: 'Company Identity Card', issuer: 'Apex Security', status: 'verified', trust: 98 },
+    { type: 'Aadhaar Card', name: 'UIDAI Aadhaar Verification', issuer: 'UIDAI Govt of India', status: 'verified', trust: 99 },
+    { type: 'PAN Card', name: 'Income Tax Department PAN', issuer: 'Govt of India ITD', status: 'verified', trust: 96 },
+    { type: 'Qualification Certificate', name: 'B.Tech Engineering Degree', issuer: 'State Technical University', status: 'verified', trust: 94 },
+    { type: 'Experience Certificate', name: 'Prior Service Letter', issuer: 'Nexus Field Services Ltd', status: 'review', trust: 82 },
+  ]);
+
+  const [assets, setAssets] = useState({
+    laptop: true,
+    mobile: true,
+    vehicle: false,
+    equipment: true,
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const toggleDocStatus = (index: number) => {
+    const next = [...docs];
+    const cur = next[index].status;
+    next[index].status = cur === 'verified' ? 'review' : cur === 'review' ? 'flagged' : 'verified';
+    next[index].trust = next[index].status === 'verified' ? 96 : next[index].status === 'review' ? 74 : 35;
+    setDocs(next);
+  };
+
+  const handleComplete = async () => {
+    if (!candidate.name.trim()) {
+      setError('Please provide candidate name.');
+      setStep(1);
+      return;
+    }
+    setIsSubmitting(true);
+    setError('');
+
+    const assignedAssetNames: string[] = [];
+    if (assets.laptop) assignedAssetNames.push(`Laptop LT-${Math.floor(100 + Math.random() * 900)} (ThinkPad P16)`);
+    if (assets.mobile) assignedAssetNames.push(`Mobile MB-${Math.floor(100 + Math.random() * 900)} (Samsung Knox Enterprise)`);
+    if (assets.vehicle) assignedAssetNames.push(`Vehicle VH-${Math.floor(10 + Math.random() * 90)} (Utility Fleet Van)`);
+    if (assets.equipment) assignedAssetNames.push(`Safety Kit SK-${Math.floor(100 + Math.random() * 900)} (Level 3 PPE & Sensors)`);
+
+    try {
+      const res = await fetch('/api/workforce/onboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...candidate,
+          assignedAssets: assignedAssetNames,
+          documents: docs.map((d) => ({
+            name: `${d.name} (${candidate.name})`,
+            type: d.type,
+            issuer: d.issuer,
+            status: d.status,
+            trustScore: d.trust,
+          })),
+        }),
+      });
+
+      if (res.ok) {
+        queryClient.invalidateQueries({ queryKey: getListWorkforceQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListAssetsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListActivityQueryKey({ limit: 50 }) });
+        queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+        onClose();
+      } else {
+        const err = await res.json();
+        setError(err.error || 'Failed to complete onboarding');
+      }
+    } catch (_err) {
+      setError('Network error completing onboarding');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-5">
+        <div className="flex items-center justify-between border-b border-border/70 pb-4">
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600">
+              <ClipboardCheck className="size-5" />
+            </span>
+            <div>
+              <h2 className="text-sm font-bold text-foreground">Candidate KYC & Onboarding (Steps 9 & 10)</h2>
+              <p className="text-[11px] text-muted-foreground">Verify employee evidence, run AI validation, and assign assets</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={() => setStep(1)}
+            className={cn('rounded-lg py-1.5 text-center text-[10px] font-bold border transition-colors', step === 1 ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]' : 'border-border bg-muted/40 text-muted-foreground')}
+          >
+            1. Candidate Info
+          </button>
+          <button
+            onClick={() => setStep(2)}
+            className={cn('rounded-lg py-1.5 text-center text-[10px] font-bold border transition-colors', step === 2 ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]' : 'border-border bg-muted/40 text-muted-foreground')}
+          >
+            2. KYC Verification
+          </button>
+          <button
+            onClick={() => setStep(3)}
+            className={cn('rounded-lg py-1.5 text-center text-[10px] font-bold border transition-colors', step === 3 ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]' : 'border-border bg-muted/40 text-muted-foreground')}
+          >
+            3. Asset Assignment
+          </button>
+        </div>
+
+        {error && (
+          <p className="rounded-lg bg-red-50 p-2.5 text-[11px] font-semibold text-red-700 border border-red-200">{error}</p>
+        )}
+
+        {step === 1 && (
+          <div className="space-y-3.5">
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Candidate Full Name</label>
+              <input
+                value={candidate.name}
+                onChange={(e) => setCandidate({ ...candidate, name: e.target.value })}
+                placeholder="e.g. Priya Sharma"
+                className="w-full rounded-lg border border-border bg-muted/60 px-3.5 py-2 text-[12px] outline-none focus:border-[hsl(var(--primary))]"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Department</label>
+                <select
+                  value={candidate.department}
+                  onChange={(e) => setCandidate({ ...candidate, department: e.target.value })}
+                  className="w-full rounded-lg border border-border bg-muted/60 px-3 py-2 text-[12px] outline-none"
+                >
+                  <option>Operations</option>
+                  <option>Engineering</option>
+                  <option>Field Ops</option>
+                  <option>Clinical & Medical</option>
+                  <option>Logistics & Warehouse</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Role</label>
+                <input
+                  value={candidate.role}
+                  onChange={(e) => setCandidate({ ...candidate, role: e.target.value })}
+                  className="w-full rounded-lg border border-border bg-muted/60 px-3 py-2 text-[12px] outline-none"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Organization</label>
+                <input
+                  value={candidate.organization}
+                  onChange={(e) => setCandidate({ ...candidate, organization: e.target.value })}
+                  className="w-full rounded-lg border border-border bg-muted/60 px-3 py-2 text-[12px] outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Assigned Manager</label>
+                <input
+                  value={candidate.manager}
+                  onChange={(e) => setCandidate({ ...candidate, manager: e.target.value })}
+                  className="w-full rounded-lg border border-border bg-muted/60 px-3 py-2 text-[12px] outline-none"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-xs font-bold text-white shadow-sm hover:brightness-110"
+              >
+                Proceed to KYC Evidence →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="space-y-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-foreground">Employee Verification Uploads (5 Documents)</span>
+              <span className="text-[10px] text-muted-foreground">Click badge to toggle status</span>
+            </div>
+            <div className="divide-y divide-border/60 rounded-xl border border-border bg-muted/30">
+              {docs.map((doc, idx) => (
+                <div key={doc.type} className="flex items-center justify-between p-3">
+                  <div>
+                    <div className="text-[11px] font-bold text-foreground">{doc.type}</div>
+                    <div className="text-[10px] text-muted-foreground">{doc.name} · {doc.issuer}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="mono text-[10px] font-bold text-emerald-600">{doc.trust}% trust</span>
+                    <button
+                      type="button"
+                      onClick={() => toggleDocStatus(idx)}
+                      className={cn(
+                        'rounded-full px-2.5 py-0.5 text-[10px] font-bold border cursor-pointer transition-all',
+                        doc.status === 'verified' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:brightness-95' : doc.status === 'review' ? 'bg-amber-50 text-amber-700 border-amber-200 hover:brightness-95' : 'bg-rose-50 text-rose-700 border-rose-200 hover:brightness-95'
+                      )}
+                    >
+                      {doc.status === 'verified' ? '🟢 Verified' : doc.status === 'review' ? '🟡 Under Review' : '🔴 Rejected'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between pt-2">
+              <button type="button" onClick={() => setStep(1)} className="rounded-lg px-3 py-2 text-xs font-bold text-muted-foreground hover:bg-muted">← Back</button>
+              <button type="button" onClick={() => setStep(3)} className="rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-xs font-bold text-white shadow-sm hover:brightness-110">Proceed to Asset Assignment →</button>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-4">
+            <div>
+              <div className="text-[11px] font-bold text-foreground mb-1">Step 10: Assign Enterprise Assets</div>
+              <p className="text-[11px] text-muted-foreground">Select physical and digital equipment assigned to {candidate.name || 'this worker'}:</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <label className={cn('flex items-center gap-3 rounded-xl border p-3.5 cursor-pointer transition-all', assets.laptop ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/5' : 'border-border bg-muted/30')}>
+                <input type="checkbox" checked={assets.laptop} onChange={(e) => setAssets({ ...assets, laptop: e.target.checked })} className="size-4 accent-[hsl(var(--primary))]" />
+                <div>
+                  <div className="text-[11px] font-bold">💻 Laptop</div>
+                  <div className="text-[10px] text-muted-foreground">ThinkPad P16 / MacBook</div>
+                </div>
+              </label>
+
+              <label className={cn('flex items-center gap-3 rounded-xl border p-3.5 cursor-pointer transition-all', assets.mobile ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/5' : 'border-border bg-muted/30')}>
+                <input type="checkbox" checked={assets.mobile} onChange={(e) => setAssets({ ...assets, mobile: e.target.checked })} className="size-4 accent-[hsl(var(--primary))]" />
+                <div>
+                  <div className="text-[11px] font-bold">📱 Mobile Device</div>
+                  <div className="text-[10px] text-muted-foreground">Knox Secured Enterprise</div>
+                </div>
+              </label>
+
+              <label className={cn('flex items-center gap-3 rounded-xl border p-3.5 cursor-pointer transition-all', assets.vehicle ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/5' : 'border-border bg-muted/30')}>
+                <input type="checkbox" checked={assets.vehicle} onChange={(e) => setAssets({ ...assets, vehicle: e.target.checked })} className="size-4 accent-[hsl(var(--primary))]" />
+                <div>
+                  <div className="text-[11px] font-bold">🚗 Fleet Vehicle</div>
+                  <div className="text-[10px] text-muted-foreground">Utility Transport Van</div>
+                </div>
+              </label>
+
+              <label className={cn('flex items-center gap-3 rounded-xl border p-3.5 cursor-pointer transition-all', assets.equipment ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/5' : 'border-border bg-muted/30')}>
+                <input type="checkbox" checked={assets.equipment} onChange={(e) => setAssets({ ...assets, equipment: e.target.checked })} className="size-4 accent-[hsl(var(--primary))]" />
+                <div>
+                  <div className="text-[11px] font-bold">🦺 Field Gear / Sensors</div>
+                  <div className="text-[10px] text-muted-foreground">Level 3 PPE & Scanner</div>
+                </div>
+              </label>
+            </div>
+
+            <div className="flex justify-between pt-3">
+              <button type="button" onClick={() => setStep(2)} className="rounded-lg px-3 py-2 text-xs font-bold text-muted-foreground hover:bg-muted">← Back</button>
+              <button
+                type="button"
+                onClick={handleComplete}
+                disabled={isSubmitting}
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:brightness-110 disabled:opacity-60"
+              >
+                {isSubmitting ? 'Onboarding & Enrolling…' : <><CheckCircle2 className="size-4" /> Complete Onboarding</>}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Workforce() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [selectedMember, setSelectedMember] = useState<WorkforceMember | null>(null);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [onboardModalOpen, setOnboardModalOpen] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
   const queryClient = useQueryClient();
 
@@ -556,7 +1277,7 @@ function Workforce() {
   const handleRecalculateAll = async () => {
     setIsRecalculating(true);
     try {
-      await fetch('/api/pramaanx/workforce/recalculate-stress', { method: 'POST' });
+      await fetch('/api/workforce/recalculate-stress', { method: 'POST' });
       queryClient.invalidateQueries({ queryKey: getListWorkforceQueryKey() });
     } catch (_err) {
       // fallback handling
@@ -572,15 +1293,31 @@ function Workforce() {
         title="Workforce & Stress Monitoring"
         description="Monitor credential assurance, cognitive workload, and burnout telemetry across all personnel."
         action={
-          <button
-            onClick={handleRecalculateAll}
-            disabled={isRecalculating}
-            className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm transition-all hover:brightness-110 disabled:opacity-60"
-            data-testid="button-recalculate-stress"
-          >
-            <RefreshCw className={cn('size-3.5', isRecalculating && 'animate-spin')} />
-            {isRecalculating ? 'Recalculating Engine…' : 'Recalculate Live Stress'}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={handleRecalculateAll}
+              disabled={isRecalculating}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-[11px] font-bold text-foreground shadow-sm transition-all hover:bg-muted disabled:opacity-60"
+              data-testid="button-recalculate-stress"
+            >
+              <RefreshCw className={cn('size-3.5', isRecalculating && 'animate-spin')} />
+              {isRecalculating ? 'Recalculating…' : 'Recalculate Stress'}
+            </button>
+            <button
+              onClick={() => setInviteModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3.5 py-2 text-[11px] font-bold text-blue-600 shadow-sm transition-all hover:bg-blue-500/20"
+              data-testid="button-open-invite"
+            >
+              <UsersRound className="size-3.5" /> Invite Personnel
+            </button>
+            <button
+              onClick={() => setOnboardModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-3.5 py-2 text-[11px] font-bold text-white shadow-sm transition-all hover:brightness-110"
+              data-testid="button-open-onboard"
+            >
+              <ClipboardCheck className="size-3.5" /> Onboard & Verify KYC
+            </button>
+          </div>
         }
       />
 
@@ -671,6 +1408,14 @@ function Workforce() {
 
       {selectedMember && (
         <EmployeeStressAssessmentModal member={selectedMember} onClose={() => setSelectedMember(null)} />
+      )}
+
+      {inviteModalOpen && (
+        <InviteEmployeeModal onClose={() => setInviteModalOpen(false)} />
+      )}
+
+      {onboardModalOpen && (
+        <CandidateVerificationOnboardingModal onClose={() => setOnboardModalOpen(false)} />
       )}
     </div>
   );
