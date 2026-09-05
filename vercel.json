@@ -4,7 +4,6 @@
   "buildCommand": "pnpm --filter @workspace/pramaanx run build",
   "outputDirectory": "artifacts/pramaanx/dist",
   "installCommand": "pnpm install",
-  "cleanUrls": true,
   "rewrites": [
     {
       "source": "/api/:match*",
