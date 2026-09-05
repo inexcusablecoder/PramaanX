@@ -162,3 +162,38 @@
 @keyframes rise-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* Leaflet Real Map Custom Theme & Tooltip */
+.leaflet-container {
+  background-color: #0b0e14 !important;
+  font-family: inherit;
+}
+
+.leaflet-bar a {
+  background-color: #121622 !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.leaflet-bar a:hover {
+  background-color: #1a2030 !important;
+  color: #38bdf8 !important;
+}
+
+.pramaanx-custom-tooltip {
+  background-color: rgba(18, 22, 34, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 8px !important;
+  padding: 6px 10px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.pramaanx-custom-tooltip::before {
+  border-top-color: rgba(18, 22, 34, 0.95) !important;
+}
+
+.custom-asset-marker {
+  background: transparent !important;
+  border: none !important;
+}
