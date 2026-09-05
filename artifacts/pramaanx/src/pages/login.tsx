@@ -1,6 +1,17 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { ArrowRight, CheckCircle2, Lock, Mail, ShieldCheck, Sparkles, Building2 } from 'lucide-react';
+import {
+  ArrowRight,
+  Lock,
+  Mail,
+  ShieldCheck,
+  Sparkles,
+  Building2,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  UserCheck,
+} from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 export default function Login() {
@@ -9,23 +20,35 @@ export default function Login() {
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim() || !password) {
+      setErrorMsg('Please enter both email and password.');
+      return;
+    }
     setLoading(true);
     setErrorMsg('');
-    const success = await login(email, password);
-    setLoading(false);
-    if (success) {
-      const lower = email.toLowerCase();
-      if (lower.includes('it')) setLocation('/dashboard/it');
-      else if (lower.includes('field') || lower.includes('construction')) setLocation('/dashboard/construction');
-      else if (lower.includes('med')) setLocation('/dashboard/medical');
-      else setLocation('/');
-    } else {
-      setErrorMsg('Invalid credentials. Please try again.');
+    try {
+      const success = await login(email.trim(), password);
+      setLoading(false);
+      if (success) {
+        const savedUserStr = localStorage.getItem('px_user');
+        const savedUser = savedUserStr ? JSON.parse(savedUserStr) : null;
+        const sector = savedUser?.allowedSector;
+        if (sector === 'it') setLocation('/dashboard/it');
+        else if (sector === 'construction') setLocation('/dashboard/construction');
+        else if (sector === 'medical') setLocation('/dashboard/medical');
+        else setLocation('/');
+      } else {
+        setErrorMsg('Invalid credentials. Please verify your individual email and password.');
+      }
+    } catch {
+      setLoading(false);
+      setErrorMsg('Unable to connect to authentication gateway. Please try again.');
     }
   };
 
@@ -54,84 +77,20 @@ export default function Login() {
             </span>
           </div>
           <p className="mono text-xs text-slate-400 uppercase tracking-[.25em]">
-            Enterprise Verification & Risk Operations
+            Enterprise Verification &amp; Risk Operations
           </p>
         </div>
 
         {/* Card Frame */}
-        <div className="rounded-2xl border border-white/10 bg-white/[.035] backdrop-blur-xl p-6 shadow-2xl">
-          {/* Sector Quick Login Options */}
-          <div className="mb-5">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2.5 text-center">
-              Quick Role / Sector Login
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={async () => {
-                  setEmail('shreyash@pramaanx.io');
-                  setPassword('password123');
-                  const ok = await login('shreyash@pramaanx.io', 'password123');
-                  if (ok) setLocation('/');
-                }}
-                className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-left hover:bg-amber-500/20 transition-all"
-                data-testid="login-sector-admin"
-              >
-                <div className="text-[11px] font-extrabold text-amber-400">SHREYASH (Admin)</div>
-                <div className="text-[9px] text-slate-400">Control Room / Executive</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={async () => {
-                  setEmail('it@pramaanx.io');
-                  setPassword('password123');
-                  const ok = await login('it@pramaanx.io', 'password123');
-                  if (ok) setLocation('/dashboard/it');
-                }}
-                className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-left hover:bg-blue-500/20 transition-all"
-                data-testid="login-sector-it"
-              >
-                <div className="text-[11px] font-extrabold text-blue-400">IT & Software</div>
-                <div className="text-[9px] text-slate-400">Software Sector Portal</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={async () => {
-                  setEmail('field@pramaanx.io');
-                  setPassword('password123');
-                  const ok = await login('field@pramaanx.io', 'password123');
-                  if (ok) setLocation('/dashboard/construction');
-                }}
-                className="p-2.5 rounded-xl bg-amber-600/10 border border-amber-600/30 text-left hover:bg-amber-600/20 transition-all"
-                data-testid="login-sector-construction"
-              >
-                <div className="text-[11px] font-extrabold text-amber-500">Construction / Field</div>
-                <div className="text-[9px] text-slate-400">Field Operations Portal</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={async () => {
-                  setEmail('medical@pramaanx.io');
-                  setPassword('password123');
-                  const ok = await login('medical@pramaanx.io', 'password123');
-                  if (ok) setLocation('/dashboard/medical');
-                }}
-                className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-left hover:bg-rose-500/20 transition-all"
-                data-testid="login-sector-medical"
-              >
-                <div className="text-[11px] font-extrabold text-rose-400">Healthcare / Medical</div>
-                <div className="text-[9px] text-slate-400">Medical Director Portal</div>
-              </button>
-            </div>
-          </div>
-
+        <div className="rounded-2xl border border-white/10 bg-white/[.035] backdrop-blur-xl p-6 sm:p-7 shadow-2xl">
           {/* Auth Mode Tabs */}
-          <div className="grid grid-cols-2 gap-1 p-1 mb-5 rounded-xl bg-white/[.06] border border-white/10">
+          <div className="grid grid-cols-2 gap-1 p-1 mb-6 rounded-xl bg-white/[.06] border border-white/10">
             <button
-              onClick={() => setTab('login')}
+              type="button"
+              onClick={() => {
+                setTab('login');
+                setErrorMsg('');
+              }}
               className={`py-2 text-xs font-bold rounded-lg transition-all ${
                 tab === 'login'
                   ? 'bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] shadow'
@@ -139,10 +98,14 @@ export default function Login() {
               }`}
               data-testid="tab-login"
             >
-              Sign In
+              Individual Sign In
             </button>
             <button
-              onClick={() => setTab('register')}
+              type="button"
+              onClick={() => {
+                setTab('register');
+                setErrorMsg('');
+              }}
               className={`py-2 text-xs font-bold rounded-lg transition-all ${
                 tab === 'register'
                   ? 'bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] shadow'
@@ -156,20 +119,28 @@ export default function Login() {
 
           {tab === 'login' ? (
             <form onSubmit={handleLoginSubmit} className="space-y-4">
+              {errorMsg && (
+                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-medium animate-in fade-in duration-200">
+                  <AlertCircle className="size-4 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                  Email Address
+                  Corporate Email or Username
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
                   <input
-                    type="email"
+                    type="text"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@company.com"
+                    placeholder="admin@pramaanx.io or user@company.com"
                     className="w-full h-11 pl-10 pr-4 rounded-xl bg-white/[.06] border border-white/10 text-xs font-medium placeholder:text-slate-500 focus:outline-none focus:border-[hsl(var(--accent))] transition-colors"
                     data-testid="input-login-email"
+                    autoComplete="username"
                   />
                 </div>
               </div>
@@ -181,7 +152,7 @@ export default function Login() {
                   </label>
                   <button
                     type="button"
-                    onClick={() => alert('Password reset link sent to your corporate email.')}
+                    onClick={() => alert('Password reset link has been dispatched to your corporate email.')}
                     className="text-[10px] text-[hsl(var(--accent))] hover:underline"
                     data-testid="button-forgot-password"
                   >
@@ -191,29 +162,54 @@ export default function Login() {
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
-                    className="w-full h-11 pl-10 pr-4 rounded-xl bg-white/[.06] border border-white/10 text-xs font-medium placeholder:text-slate-500 focus:outline-none focus:border-[hsl(var(--accent))] transition-colors"
+                    className="w-full h-11 pl-10 pr-10 rounded-xl bg-white/[.06] border border-white/10 text-xs font-medium placeholder:text-slate-500 focus:outline-none focus:border-[hsl(var(--accent))] transition-colors"
                     data-testid="input-login-password"
+                    autoComplete="current-password"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-1"
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
                 </div>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full h-11 mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] text-white text-xs font-bold shadow-lg hover:brightness-110 active:scale-[.98] transition-all disabled:opacity-50"
+                className="w-full h-11 mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] text-white text-xs font-bold shadow-lg hover:brightness-110 active:scale-[.98] transition-all disabled:opacity-50 cursor-pointer"
                 data-testid="button-submit-login"
               >
-                {loading ? 'Authenticating…' : (
+                {loading ? (
+                  'Authenticating…'
+                ) : (
                   <>
                     Sign In to Console <ArrowRight className="size-4" />
                   </>
                 )}
               </button>
+
+              {/* Individual / Admin Account Reference Note */}
+              <div className="mt-4 p-3 rounded-xl bg-white/[.03] border border-white/5 space-y-1.5 text-[11px] text-slate-400">
+                <div className="flex items-center gap-1.5 font-bold text-slate-300 text-[11px]">
+                  <UserCheck className="size-3.5 text-[hsl(var(--accent))]" />
+                  <span>Credential Guide</span>
+                </div>
+                <div className="text-[10px] leading-relaxed text-slate-400">
+                  <strong className="text-amber-400 font-semibold">Administrator Access:</strong> Enter admin email (e.g. <code className="text-slate-200 bg-white/10 px-1 py-0.5 rounded">shreyash@pramaanx.io</code> or <code className="text-slate-200 bg-white/10 px-1 py-0.5 rounded">admin@pramaanx.io</code>).
+                </div>
+                <div className="text-[10px] leading-relaxed text-slate-400">
+                  <strong className="text-blue-400 font-semibold">Workforce / Personnel:</strong> Enter your individual corporate email (e.g. <code className="text-slate-200 bg-white/10 px-1 py-0.5 rounded">ananya@apexlogistics.in</code> or your registered account).
+                </div>
+              </div>
             </form>
           ) : (
             <div className="space-y-4">
@@ -227,7 +223,7 @@ export default function Login() {
 
               <button
                 onClick={handleRegisterStart}
-                className="w-full h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] text-xs font-bold shadow-lg hover:brightness-105 active:scale-[.98] transition-all"
+                className="w-full h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] text-xs font-bold shadow-lg hover:brightness-105 active:scale-[.98] transition-all cursor-pointer"
                 data-testid="button-start-onboarding"
               >
                 Start Onboarding Wizard <Sparkles className="size-4" />
@@ -242,8 +238,9 @@ export default function Login() {
             </p>
             <div className="grid grid-cols-2 gap-3">
               <button
+                type="button"
                 onClick={() => setLocation('/')}
-                className="flex items-center justify-center gap-2 h-10 rounded-xl bg-white/[.05] border border-white/10 text-xs font-semibold text-slate-200 hover:bg-white/[.1] transition-colors"
+                className="flex items-center justify-center gap-2 h-10 rounded-xl bg-white/[.05] border border-white/10 text-xs font-semibold text-slate-200 hover:bg-white/[.1] transition-colors cursor-pointer"
                 data-testid="sso-google"
               >
                 <svg className="size-4" viewBox="0 0 24 24">
@@ -256,8 +253,9 @@ export default function Login() {
               </button>
 
               <button
+                type="button"
                 onClick={() => setLocation('/')}
-                className="flex items-center justify-center gap-2 h-10 rounded-xl bg-white/[.05] border border-white/10 text-xs font-semibold text-slate-200 hover:bg-white/[.1] transition-colors"
+                className="flex items-center justify-center gap-2 h-10 rounded-xl bg-white/[.05] border border-white/10 text-xs font-semibold text-slate-200 hover:bg-white/[.1] transition-colors cursor-pointer"
                 data-testid="sso-microsoft"
               >
                 <svg className="size-4" viewBox="0 0 23 23">
@@ -281,3 +279,4 @@ export default function Login() {
     </div>
   );
 }
+

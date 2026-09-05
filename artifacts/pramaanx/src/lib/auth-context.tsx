@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           companyId: 'comp-demo-01',
           allowedSector: 'medical',
         };
-      } else {
+      } else if (lower.includes('shreyash') || lower.includes('admin')) {
         demoUser = {
           id: 'user-shreyash',
           name: 'SHREYASH',
@@ -114,7 +114,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           companyId: 'comp-demo-01',
           allowedSector: 'all',
         };
+      } else {
+        const usernamePart = email.includes('@') ? email.split('@')[0] : email;
+        const formattedName = usernamePart
+          .split(/[\.\-_]/)
+          .map((part: string) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(' ');
+        demoUser = {
+          id: `user-${Date.now()}`,
+          name: formattedName || 'Individual Personnel',
+          email: email,
+          role: 'Corporate Operations Specialist',
+          department: 'Workforce Operations',
+          companyId: 'comp-demo-01',
+          allowedSector: 'all',
+        };
       }
+
 
       const demoComp: Company = {
         id: 'comp-demo-01',
