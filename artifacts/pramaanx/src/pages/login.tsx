@@ -10,8 +10,8 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  UserCheck,
 } from 'lucide-react';
+
 import { useAuth } from '@/lib/auth-context';
 
 export default function Login() {
@@ -196,20 +196,6 @@ export default function Login() {
                   </>
                 )}
               </button>
-
-              {/* Individual / Admin Account Reference Note */}
-              <div className="mt-4 p-3 rounded-xl bg-white/[.03] border border-white/5 space-y-1.5 text-[11px] text-slate-400">
-                <div className="flex items-center gap-1.5 font-bold text-slate-300 text-[11px]">
-                  <UserCheck className="size-3.5 text-[hsl(var(--accent))]" />
-                  <span>Credential Guide</span>
-                </div>
-                <div className="text-[10px] leading-relaxed text-slate-400">
-                  <strong className="text-amber-400 font-semibold">Administrator Access:</strong> Enter admin email (e.g. <code className="text-slate-200 bg-white/10 px-1 py-0.5 rounded">shreyash@pramaanx.io</code> or <code className="text-slate-200 bg-white/10 px-1 py-0.5 rounded">admin@pramaanx.io</code>).
-                </div>
-                <div className="text-[10px] leading-relaxed text-slate-400">
-                  <strong className="text-blue-400 font-semibold">Workforce / Personnel:</strong> Enter your individual corporate email (e.g. <code className="text-slate-200 bg-white/10 px-1 py-0.5 rounded">ananya@apexlogistics.in</code> or your registered account).
-                </div>
-              </div>
             </form>
           ) : (
             <div className="space-y-4">
