@@ -29,23 +29,33 @@ interface GpsTacticalMapProps {
 
 type MapLayerType = 'dark' | 'street' | 'satellite';
 
-const TILE_LAYERS: Record<MapLayerType, { name: string; url: string; attribution: string; maxZoom: number }> = {
+interface LayerConfig {
+  name: string;
+  baseUrl: string;
+  overlayUrl?: string;
+  attribution: string;
+  maxZoom: number;
+}
+
+const TILE_LAYERS: Record<MapLayerType, LayerConfig> = {
   dark: {
     name: 'Tactical Dark',
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    maxZoom: 19,
+    baseUrl: 'https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    overlayUrl: 'https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri',
+    maxZoom: 16,
   },
   street: {
     name: 'Street Map',
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19,
+    baseUrl: 'https://services.arcgisonline.com/arcgis/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri',
+    maxZoom: 18,
   },
   satellite: {
     name: 'Satellite View',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+    baseUrl: 'https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    overlayUrl: 'https://services.arcgisonline.com/arcgis/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping',
     maxZoom: 18,
   },
 };
@@ -58,7 +68,8 @@ export function GpsTacticalMap({
 }: GpsTacticalMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const tileBaseRef = useRef<L.TileLayer | null>(null);
+  const tileOverlayRef = useRef<L.TileLayer | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const geofencesLayerRef = useRef<L.LayerGroup | null>(null);
   const trailsLayerRef = useRef<L.LayerGroup | null>(null);
@@ -107,6 +118,39 @@ export function GpsTacticalMap({
     }
   };
 
+  // Switch Tile Layer Helper
+  const switchTiles = (mapInstance: L.Map, layerType: MapLayerType) => {
+    const layerConfig = TILE_LAYERS[layerType];
+
+    // Remove old layers
+    if (tileBaseRef.current) {
+      mapInstance.removeLayer(tileBaseRef.current);
+      tileBaseRef.current = null;
+    }
+    if (tileOverlayRef.current) {
+      mapInstance.removeLayer(tileOverlayRef.current);
+      tileOverlayRef.current = null;
+    }
+
+    // Add Base Layer
+    const baseLayer = L.tileLayer(layerConfig.baseUrl, {
+      maxZoom: layerConfig.maxZoom,
+      attribution: layerConfig.attribution,
+    }).addTo(mapInstance);
+    baseLayer.bringToBack();
+    tileBaseRef.current = baseLayer;
+
+    // Add Reference / Place Names Overlay if defined
+    if (layerConfig.overlayUrl) {
+      const overlayLayer = L.tileLayer(layerConfig.overlayUrl, {
+        maxZoom: layerConfig.maxZoom,
+      }).addTo(mapInstance);
+      overlayLayer.bringToBack();
+      baseLayer.bringToBack();
+      tileOverlayRef.current = overlayLayer;
+    }
+  };
+
   // Initialize Map Instance
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -122,15 +166,10 @@ export function GpsTacticalMap({
       attributionControl: false,
     });
 
-    // Add Initial Tile Layer
-    const layerConfig = TILE_LAYERS[activeLayerType];
-    const tileLayer = L.tileLayer(layerConfig.url, {
-      maxZoom: layerConfig.maxZoom,
-      subdomains: 'abcd',
-    }).addTo(mapInstance);
-    tileLayerRef.current = tileLayer;
+    // Add Initial Tile Layers
+    switchTiles(mapInstance, activeLayerType);
 
-    // Add Layer Groups
+    // Add Vector Layer Groups
     geofencesLayerRef.current = L.layerGroup().addTo(mapInstance);
     trailsLayerRef.current = L.layerGroup().addTo(mapInstance);
     markersLayerRef.current = L.layerGroup().addTo(mapInstance);
@@ -153,20 +192,7 @@ export function GpsTacticalMap({
   // Update Tile Layer when user switches style
   useEffect(() => {
     if (!mapRef.current) return;
-    const layerConfig = TILE_LAYERS[activeLayerType];
-
-    if (tileLayerRef.current) {
-      mapRef.current.removeLayer(tileLayerRef.current);
-    }
-
-    const newTileLayer = L.tileLayer(layerConfig.url, {
-      maxZoom: layerConfig.maxZoom,
-      subdomains: 'abcd',
-    }).addTo(mapRef.current);
-
-    // Ensure tile layer stays beneath markers/geofences
-    newTileLayer.bringToBack();
-    tileLayerRef.current = newTileLayer;
+    switchTiles(mapRef.current, activeLayerType);
   }, [activeLayerType]);
 
   // Update Markers, Geofences, and Trails
@@ -395,7 +421,7 @@ export function GpsTacticalMap({
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
                   : 'text-slate-400 hover:text-white'
               }`}
-              title="Carto Dark Tactical Map"
+              title="Esri Tactical Dark Map"
             >
               <Crosshair className="size-3" />
               Tactical Dark
@@ -408,7 +434,7 @@ export function GpsTacticalMap({
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
                   : 'text-slate-400 hover:text-white'
               }`}
-              title="OpenStreetMap Streets & Highway Network"
+              title="Esri World Street Map"
             >
               <MapIcon className="size-3" />
               Streets
