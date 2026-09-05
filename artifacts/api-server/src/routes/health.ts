@@ -3,9 +3,16 @@ import { HealthCheckResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
-router.get("/healthz", (_req, res) => {
+router.get(["/health", "/healthz"], (_req, res) => {
   const data = HealthCheckResponse.parse({ status: "ok" });
-  res.json(data);
+  res.json({
+    ...data,
+    service: "PramaanX API Engine",
+    timestamp: new Date().toISOString(),
+    uptimeSeconds: Math.floor(process.uptime()),
+    database: "active",
+  });
 });
 
 export default router;
+

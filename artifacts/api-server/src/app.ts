@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
+import healthRouter from "./routes/health";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -29,7 +30,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use(healthRouter);
 app.use("/api", router);
+
 
 app.get(["/", "/api"], (_req, res) => {
   res.setHeader("Content-Type", "text/html");
