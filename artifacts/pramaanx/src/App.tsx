@@ -72,6 +72,22 @@ import ITDashboard from '@/pages/dashboards/it-dashboard';
 import ConstructionDashboard from '@/pages/dashboards/construction-dashboard';
 import MedicalDashboard from '@/pages/dashboards/medical-dashboard';
 import { AICopilotDrawer, AlertCenterDrawer } from '@/components/common-modules';
+import { GpsTacticalMap } from '@/components/gps-tactical-map';
+import { AssetGpsInspectorModal } from '@/components/asset-gps-inspector-modal';
+import { AddAssetModal } from '@/components/add-asset-modal';
+import {
+  Navigation,
+  Compass,
+  Radio,
+  MapPin,
+  HardHat,
+  Truck,
+  HeartPulse,
+  Server,
+  LocateFixed,
+  Layers,
+} from 'lucide-react';
+
 
 const queryClient = new QueryClient();
 
@@ -1470,21 +1486,446 @@ function WorkforceRow({ member, onAssessStress }: { member: WorkforceMember; onA
 
 function Assets() {
   const query = useListAssets({ query: { queryKey: getListAssetsQueryKey() } });
+  const [sectorFilter, setSectorFilter] = useState<'all' | 'construction' | 'logistics' | 'medical' | 'it'>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  const [inspectingAsset, setInspectingAsset] = useState<Asset | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const assets = (query.data || []) as Asset[];
+
+  // Metrics
+  const totalAssets = assets.length;
+  const inMotionCount = assets.filter((a) => (a.speedKmh || 0) > 0).length;
+  const safeGeofenceCount = assets.filter((a) => a.geofenceStatus === 'inside' || a.custodyStatus === 'secure').length;
+  const alertCount = assets.filter(
+    (a) => a.custodyStatus === 'attention' || a.geofenceStatus === 'warning' || a.geofenceStatus === 'breached'
+  ).length;
+
+  const sectorCounts = {
+    all: totalAssets,
+    construction: assets.filter((a) => a.fieldSector === 'construction').length,
+    logistics: assets.filter((a) => a.fieldSector === 'logistics').length,
+    medical: assets.filter((a) => a.fieldSector === 'medical').length,
+    it: assets.filter((a) => a.fieldSector === 'it').length,
+  };
+
+  const filteredAssets = useMemo(() => {
+    return assets.filter((a) => {
+      if (sectorFilter !== 'all' && (a.fieldSector || '').toLowerCase() !== sectorFilter) return false;
+      if (statusFilter !== 'all' && !(a.custodyStatus || '').toLowerCase().includes(statusFilter)) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesName = a.name.toLowerCase().includes(q);
+        const matchesLoc = (a.location || '').toLowerCase().includes(q);
+        const matchesCat = (a.category || '').toLowerCase().includes(q);
+        const matchesUser = (a.assignedPersonnel || '').toLowerCase().includes(q);
+        if (!matchesName && !matchesLoc && !matchesCat && !matchesUser) return false;
+      }
+      return true;
+    });
+  }, [assets, sectorFilter, statusFilter, searchQuery]);
+
   const exportView = () => {
-    if (!query.data?.length) return;
-    const csv = ['Asset,Category,Location,Custody,Trust score,Last seen', ...query.data.map((asset) => [asset.name, asset.category, asset.location, asset.custodyStatus, asset.trustScore, asset.lastSeen].map((value) => `"${String(value).replaceAll('"', '""')}"`).join(','))].join('\n');
+    if (!assets.length) return;
+    const csv = [
+      'Asset,Category,Sector,Location,Latitude,Longitude,Speed (km/h),Heading,Custody,Geofence,Custodian,Trust score,Last seen',
+      ...assets.map((a) =>
+        [
+          a.name,
+          a.category,
+          a.fieldSector || 'General',
+          a.location,
+          a.latitude || 18.52,
+          a.longitude || 73.85,
+          a.speedKmh || 0,
+          a.headingDegrees || 0,
+          a.custodyStatus,
+          a.geofenceStatus || 'inside',
+          a.assignedPersonnel || 'Unassigned',
+          a.trustScore,
+          a.lastSeen,
+        ]
+          .map((value) => `"${String(value).replaceAll('"', '""')}"`)
+          .join(',')
+      ),
+    ].join('\n');
     const link = document.createElement('a');
     link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    link.download = 'pramaanx-asset-custody.csv';
+    link.download = 'pramaanx-gps-telemetry-custody.csv';
     link.click();
     URL.revokeObjectURL(link.href);
   };
-  return <div className="space-y-7"><SectionHeading eyebrow="Inventory / custody" title="Asset custody" description="A live chain of custody for physical and digital assets across every location." action={<button onClick={exportView} disabled={!query.data?.length} className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-[11px] font-bold shadow-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50" data-testid="button-export-assets"><BarChart3 className="size-3.5" /> Export view</button>} /><div className="grid gap-4 sm:grid-cols-3"><MetricCard label="Tracked assets" value={query.data?.length ?? '—'} detail="Across active locations" icon={Box} tone="blue" /><MetricCard label="Secure custody" value={query.data?.filter((item) => item.custodyStatus.toLowerCase().includes('secure')).length ?? '—'} detail="No action required" icon={ShieldCheck} tone="teal" /><MetricCard label="Attention needed" value={query.data?.filter((item) => !item.custodyStatus.toLowerCase().includes('secure')).length ?? '—'} detail="Review custody status" icon={ShieldAlert} tone="red" /></div><Panel title="Tracked inventory" meta={<span className="mono text-[10px] text-muted-foreground">{query.data?.length ?? 0} ASSETS</span>}>{query.isLoading ? <LoadingPanel rows={6} /> : query.isError ? <ErrorState message="Asset telemetry is unavailable." retry={() => query.refetch()} /> : query.data?.length ? <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead><tr className="border-b border-border/70 text-[9px] uppercase tracking-[.12em] text-muted-foreground"><th className="px-5 py-3 font-bold">Asset</th><th className="px-4 py-3 font-bold">Location</th><th className="px-4 py-3 font-bold">Custody</th><th className="px-4 py-3 font-bold">Trust</th><th className="px-5 py-3 font-bold">Last seen</th></tr></thead><tbody>{query.data.map((asset) => <AssetRow key={asset.id} asset={asset} />)}</tbody></table></div> : <EmptyState icon={Box} title="No assets tracked" message="Connected assets will surface here once telemetry is available." />}</Panel></div>;
+
+  const handleSimulateFieldPing = async (id: string) => {
+    try {
+      await fetch(`/api/assets/${id}/ping`, { method: 'POST' });
+      query.refetch();
+    } catch {}
+  };
+
+  return (
+    <div className="space-y-7">
+      <SectionHeading
+        eyebrow="Geospatial Telemetry / Operations"
+        title="Asset GPS Tracking & Custody"
+        description="Live satellite telemetry, NavIC/GPS positioning, and geofence integrity across every field."
+        action={
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-3.5 py-2 text-[11px] font-bold text-white shadow-sm hover:brightness-110 cursor-pointer"
+              data-testid="button-add-asset"
+            >
+              <Plus className="size-3.5" /> Deploy Field Asset
+            </button>
+            <button
+              onClick={exportView}
+              disabled={!assets.length}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-[11px] font-bold shadow-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+              data-testid="button-export-assets"
+            >
+              <BarChart3 className="size-3.5" /> Export Telemetry CSV
+            </button>
+            <button
+              onClick={() => query.refetch()}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-bold shadow-sm hover:bg-muted cursor-pointer"
+              title="Refresh Telemetry Feeds"
+            >
+              <RefreshCw className={`size-3.5 ${query.isFetching ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        }
+      />
+
+      {/* Top Telemetry KPI Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCard
+          label="Tracked Field Assets"
+          value={totalAssets}
+          detail="Active NavIC/GPS Beacons"
+          icon={Radio}
+          tone="blue"
+        />
+        <MetricCard
+          label="Assets in Motion"
+          value={inMotionCount}
+          detail="Live transit velocity"
+          icon={Navigation}
+          tone="teal"
+        />
+        <MetricCard
+          label="Inside Safe Geofence"
+          value={safeGeofenceCount}
+          detail="Perimeter verified"
+          icon={ShieldCheck}
+          tone="teal"
+        />
+        <MetricCard
+          label="Geofence / Custody Alerts"
+          value={alertCount}
+          detail={alertCount > 0 ? "Requires review" : "All perimeters clear"}
+          icon={alertCount > 0 ? ShieldAlert : ShieldCheck}
+          tone={alertCount > 0 ? "red" : "teal"}
+        />
+
+      </div>
+
+      {/* Interactive Tactical Radar Map */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <Compass className="size-3.5 text-cyan-500" />
+            Live Geospatial Map View
+          </div>
+          <span className="text-[10px] text-muted-foreground mono">
+            {selectedAssetId ? `Inspecting: ${assets.find((a) => a.id === selectedAssetId)?.name || selectedAssetId}` : "Click any marker to inspect"}
+          </span>
+        </div>
+
+        <GpsTacticalMap
+          assets={assets}
+          selectedAssetId={selectedAssetId}
+          onSelectAsset={(asset) => {
+            setSelectedAssetId(asset.id);
+            setInspectingAsset(asset);
+          }}
+          sectorFilter={sectorFilter}
+          onPingAsset={handleSimulateFieldPing}
+        />
+      </div>
+
+      {/* Filterable Asset Table Panel */}
+      <Panel
+        title="Field Inventory Telemetry"
+        meta={
+          <div className="flex items-center gap-2">
+            <span className="mono text-[10px] text-muted-foreground uppercase">
+              {filteredAssets.length} OF {totalAssets} ASSETS
+            </span>
+          </div>
+        }
+      >
+        {/* Sector Tabs & Filters */}
+        <div className="p-4 border-b border-border/70 space-y-3 bg-muted/20">
+          {/* Sector Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+            {[
+              { id: 'all', label: 'All Fields', count: sectorCounts.all, icon: Layers },
+              { id: 'construction', label: 'Construction', count: sectorCounts.construction, icon: HardHat },
+              { id: 'logistics', label: 'Logistics', count: sectorCounts.logistics, icon: Truck },
+              { id: 'medical', label: 'Healthcare', count: sectorCounts.medical, icon: HeartPulse },
+              { id: 'it', label: 'IT & Digital', count: sectorCounts.it, icon: Server },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isSelected = sectorFilter === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setSectorFilter(tab.id as any)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    isSelected
+                      ? 'bg-foreground text-background shadow-sm'
+                      : 'bg-card text-muted-foreground hover:text-foreground border border-border/60 hover:bg-muted'
+                  }`}
+                >
+                  <Icon className="size-3.5" />
+                  <span>{tab.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-background/20 text-background' : 'bg-muted text-muted-foreground'}`}>
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search & Status Controls */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[220px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search asset, category, location, or custodian..."
+                className="w-full h-9 pl-9 pr-3 rounded-lg border border-border bg-card text-xs font-medium placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-9 px-3 rounded-lg border border-border bg-card text-xs font-semibold text-foreground focus:outline-none"
+              >
+                <option value="all">All Custody Statuses</option>
+                <option value="in-transit">In-Transit Only</option>
+                <option value="secure">Secure Custody</option>
+                <option value="attention">Requires Attention / Alert</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {query.isLoading ? (
+          <LoadingPanel rows={6} />
+        ) : query.isError ? (
+          <ErrorState message="Asset telemetry is unavailable." retry={() => query.refetch()} />
+        ) : filteredAssets.length ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[850px] text-left">
+              <thead>
+                <tr className="border-b border-border/70 text-[9px] uppercase tracking-[.12em] text-muted-foreground bg-muted/10">
+                  <th className="px-5 py-3 font-bold">Asset &amp; Field</th>
+                  <th className="px-4 py-3 font-bold">GPS Coordinates</th>
+                  <th className="px-4 py-3 font-bold">Velocity</th>
+                  <th className="px-4 py-3 font-bold">Location &amp; Geofence</th>
+                  <th className="px-4 py-3 font-bold">Custodian</th>
+                  <th className="px-4 py-3 font-bold">Trust</th>
+                  <th className="px-5 py-3 font-bold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAssets.map((asset) => (
+                  <AssetRow
+                    key={asset.id}
+                    asset={asset}
+                    isSelected={asset.id === selectedAssetId}
+                    onSelect={() => {
+                      setSelectedAssetId(asset.id);
+                      setInspectingAsset(asset);
+                    }}
+                    onPing={() => handleSimulateFieldPing(asset.id)}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState
+            icon={Radio}
+            title="No assets matching filter"
+            message="Adjust your field or status filters to view tracked units."
+          />
+        )}
+      </Panel>
+
+      {/* Deep-Dive GPS Inspector Modal */}
+      {inspectingAsset && (
+        <AssetGpsInspectorModal
+          asset={inspectingAsset}
+          onClose={() => setInspectingAsset(null)}
+          onRefresh={() => {
+            query.refetch();
+            const updated = assets.find((a) => a.id === inspectingAsset.id);
+            if (updated) setInspectingAsset(updated);
+          }}
+        />
+      )}
+
+      {/* Add New Field Asset Modal */}
+      <AddAssetModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={() => query.refetch()}
+      />
+    </div>
+  );
 }
 
-function AssetRow({ asset }: { asset: Asset }) {
-  return <tr className="border-b border-border/60 last:border-0 hover:bg-muted/35" data-testid={`row-asset-${asset.id}`}><td className="px-5 py-4"><div className="flex items-center gap-3"><span className="grid size-8 place-items-center rounded-lg bg-amber-50 text-amber-700"><Box className="size-4" /></span><div><div className="text-[11px] font-bold">{asset.name}</div><div className="mt-1 text-[10px] text-muted-foreground">{asset.category}</div></div></div></td><td className="px-4 py-4 text-[11px] font-semibold text-muted-foreground">{asset.location}</td><td className="px-4 py-4"><StatusBadge value={asset.custodyStatus} /></td><td className="px-4 py-4"><Score value={asset.trustScore} compact /></td><td className="px-5 py-4 mono text-[10px] text-muted-foreground">{formatDate(asset.lastSeen)}</td></tr>;
+function AssetRow({
+  asset,
+  isSelected,
+  onSelect,
+  onPing,
+}: {
+  asset: Asset;
+  isSelected?: boolean;
+  onSelect: () => void;
+  onPing: () => void;
+}) {
+  const isMoving = (asset.speedKmh || 0) > 0;
+  const isBreached = asset.geofenceStatus === 'breached';
+  const isWarning = asset.geofenceStatus === 'warning';
+
+  const getSectorBadge = (sector?: string) => {
+    switch ((sector || '').toLowerCase()) {
+      case 'construction':
+        return <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-amber-500/10 text-amber-500 border border-amber-500/20">Construction</span>;
+      case 'medical':
+        return <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-rose-500/10 text-rose-500 border border-rose-500/20">Medical</span>;
+      case 'it':
+        return <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">IT</span>;
+      case 'logistics':
+      default:
+        return <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-cyan-500/10 text-cyan-500 border border-cyan-500/20">Logistics</span>;
+    }
+  };
+
+  return (
+    <tr
+      className={`border-b border-border/60 last:border-0 hover:bg-muted/35 cursor-pointer transition-colors ${
+        isSelected ? 'bg-cyan-500/[.06] border-cyan-500/30' : ''
+      }`}
+      onClick={onSelect}
+      data-testid={`row-asset-${asset.id}`}
+    >
+      <td className="px-5 py-4">
+        <div className="flex items-center gap-3">
+          <span className="grid size-8 place-items-center rounded-lg bg-card border border-border text-foreground">
+            {asset.fieldSector === 'construction' ? (
+              <HardHat className="size-4 text-amber-500" />
+            ) : asset.fieldSector === 'medical' ? (
+              <HeartPulse className="size-4 text-rose-500" />
+            ) : asset.fieldSector === 'it' ? (
+              <Server className="size-4 text-emerald-500" />
+            ) : (
+              <Truck className="size-4 text-cyan-500" />
+            )}
+          </span>
+          <div>
+            <div className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
+              <span>{asset.name}</span>
+              {getSectorBadge(asset.fieldSector)}
+            </div>
+            <div className="mt-0.5 text-[10px] text-muted-foreground">{asset.category}</div>
+          </div>
+        </div>
+      </td>
+
+      <td className="px-4 py-4 text-[11px] mono">
+        <div className="font-semibold text-foreground">
+          {asset.latitude ? `${asset.latitude.toFixed(4)}°N` : '18.5204°N'},{' '}
+          {asset.longitude ? `${asset.longitude.toFixed(4)}°E` : '73.8567°E'}
+        </div>
+        <div className="text-[10px] text-muted-foreground">Alt: {asset.altitudeMeters || 500}m</div>
+      </td>
+
+      <td className="px-4 py-4 text-[11px]">
+        <div className="mono font-bold text-foreground flex items-center gap-1.5">
+          <span className={isMoving ? 'text-cyan-500 font-extrabold' : 'text-muted-foreground'}>
+            {asset.speedKmh || 0} km/h
+          </span>
+          {isMoving && <span className="size-1.5 rounded-full bg-cyan-500 animate-ping" />}
+        </div>
+        <div className="text-[10px] text-muted-foreground mono">{asset.headingDegrees || 0}° HDG</div>
+      </td>
+
+      <td className="px-4 py-4 text-[11px]">
+        <div className="font-semibold text-foreground truncate max-w-[200px]">{asset.location}</div>
+        <div className="flex items-center gap-1 mt-0.5">
+          <span
+            className={`text-[9px] font-bold capitalize ${
+              isBreached ? 'text-rose-500' : isWarning ? 'text-amber-500' : 'text-emerald-500'
+            }`}
+          >
+            ● {asset.geofenceStatus || 'inside'}
+          </span>
+          <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">
+            · {asset.geofenceZone || 'Safe Zone'}
+          </span>
+        </div>
+      </td>
+
+      <td className="px-4 py-4 text-[11px]">
+        <div className="font-semibold text-foreground">{asset.assignedPersonnel || 'Unassigned'}</div>
+        <div className="text-[10px] text-muted-foreground">{asset.assignedPersonnelRole || 'Field Operator'}</div>
+      </td>
+
+      <td className="px-4 py-4">
+        <Score value={asset.trustScore} compact />
+      </td>
+
+      <td className="px-5 py-4 text-right">
+        <div className="flex items-center justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPing();
+            }}
+            className="p-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+            title="Simulate Satellite Ping"
+          >
+            <Radio className="size-3 text-cyan-500" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect();
+            }}
+            className="px-2.5 py-1.5 rounded-lg border border-border bg-card text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+          >
+            Inspect GPS
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
 }
+
 
 function ActivityPage() {
   const query = useListActivity({ limit: 50 }, { query: { queryKey: getListActivityQueryKey({ limit: 50 }) } });

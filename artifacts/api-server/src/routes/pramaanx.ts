@@ -168,43 +168,295 @@ const seedWorkforce = [
 ];
 
 const seedAssets = [
+  // 🏗️ Construction & Field Operations
   {
-    id: "asset-034",
-    name: "Container AX-3492",
-    category: "Cold-chain container",
-    location: "Pune distribution hub",
-    custodyStatus: "in-transit",
-    trustScore: 96,
-    lastSeen: "2026-09-04T06:39:00.000Z",
-  },
-  {
-    id: "asset-033",
-    name: "Forklift FL-208",
-    category: "Material handling",
-    location: "Nashik warehouse",
+    id: "asset-const-01",
+    name: "CAT-320 Excavator (Unit #12)",
+    category: "Heavy Earthmoving",
+    fieldSector: "construction",
+    location: "Bandra-Kurla Complex Site B, Mumbai",
+    latitude: 19.0657,
+    longitude: 72.8688,
+    altitudeMeters: 28.5,
+    speedKmh: 0,
+    headingDegrees: 45,
+    batteryLevel: 92,
     custodyStatus: "secure",
-    trustScore: 91,
-    lastSeen: "2026-09-04T06:37:00.000Z",
+    geofenceZone: "BKC Infrastructure Zone 3",
+    geofenceStatus: "inside",
+    geofenceRadiusMeters: 1500,
+    assignedPersonnel: "Rohan Mehta",
+    assignedPersonnelRole: "Electrical Contractor",
+    trustScore: 94,
+    lastSeen: "2026-09-04T06:40:00.000Z",
+    telemetryBreadcrumbs: JSON.stringify([
+      { lat: 19.0652, lng: 72.8681, time: "2026-09-04T06:10:00.000Z", speed: 4 },
+      { lat: 19.0655, lng: 72.8684, time: "2026-09-04T06:25:00.000Z", speed: 2 },
+      { lat: 19.0657, lng: 72.8688, time: "2026-09-04T06:40:00.000Z", speed: 0 },
+    ]),
   },
   {
-    id: "asset-032",
-    name: "Generator GN-018",
-    category: "Power equipment",
-    location: "Mumbai site 04",
+    id: "asset-const-02",
+    name: "Concrete Transit Mixer MX-09",
+    category: "Transit Mixing Vehicle",
+    fieldSector: "construction",
+    location: "Mumbai-Pune Expressway Km 48",
+    latitude: 18.7523,
+    longitude: 73.4112,
+    altitudeMeters: 612.0,
+    speedKmh: 54,
+    headingDegrees: 310,
+    batteryLevel: 85,
+    custodyStatus: "in-transit",
+    geofenceZone: "Expressway Construction Corridor",
+    geofenceStatus: "inside",
+    geofenceRadiusMeters: 5000,
+    assignedPersonnel: "Rohan Mehta",
+    assignedPersonnelRole: "Site Electrical Contractor",
+    trustScore: 89,
+    lastSeen: "2026-09-04T06:38:00.000Z",
+    telemetryBreadcrumbs: JSON.stringify([
+      { lat: 18.7310, lng: 73.4420, time: "2026-09-04T06:00:00.000Z", speed: 60 },
+      { lat: 18.7420, lng: 73.4280, time: "2026-09-04T06:20:00.000Z", speed: 58 },
+      { lat: 18.7523, lng: 73.4112, time: "2026-09-04T06:38:00.000Z", speed: 54 },
+    ]),
+  },
+  {
+    id: "asset-const-03",
+    name: "Heavy Generator GN-018",
+    category: "Auxiliary Power",
+    fieldSector: "construction",
+    location: "MIDC Andheri Industrial Site 04",
+    latitude: 19.1136,
+    longitude: 72.8697,
+    altitudeMeters: 45.0,
+    speedKmh: 0,
+    headingDegrees: 0,
+    batteryLevel: 64,
     custodyStatus: "attention",
+    geofenceZone: "Andheri East Compound Perimeter",
+    geofenceStatus: "warning",
+    geofenceRadiusMeters: 500,
+    assignedPersonnel: "Vikram Malhotra",
+    assignedPersonnelRole: "Field Operations Lead",
     trustScore: 63,
     lastSeen: "2026-09-04T05:48:00.000Z",
+    telemetryBreadcrumbs: JSON.stringify([
+      { lat: 19.1130, lng: 72.8690, time: "2026-09-04T04:30:00.000Z", speed: 0 },
+      { lat: 19.1136, lng: 72.8697, time: "2026-09-04T05:48:00.000Z", speed: 0 },
+    ]),
+  },
+
+  // 🚚 Logistics & Fleet Operations
+  {
+    id: "asset-log-01",
+    name: "Refrigerated Container AX-3492",
+    category: "Cold-Chain Logistics",
+    fieldSector: "logistics",
+    location: "Pune Distribution Hub - Gate 4",
+    latitude: 18.5204,
+    longitude: 73.8567,
+    altitudeMeters: 560.2,
+    speedKmh: 42,
+    headingDegrees: 135,
+    batteryLevel: 96,
+    custodyStatus: "in-transit",
+    geofenceZone: "Chakan Industrial Logistics Corridor",
+    geofenceStatus: "inside",
+    geofenceRadiusMeters: 4000,
+    assignedPersonnel: "Ananya Sharma",
+    assignedPersonnelRole: "Site Operations Lead",
+    trustScore: 98,
+    lastSeen: "2026-09-04T06:39:00.000Z",
+    telemetryBreadcrumbs: JSON.stringify([
+      { lat: 18.5400, lng: 73.8300, time: "2026-09-04T06:00:00.000Z", speed: 45 },
+      { lat: 18.5300, lng: 73.8450, time: "2026-09-04T06:20:00.000Z", speed: 40 },
+      { lat: 18.5204, lng: 73.8567, time: "2026-09-04T06:39:00.000Z", speed: 42 },
+    ]),
   },
   {
-    id: "asset-031",
-    name: "Trailer TR-441",
-    category: "Fleet trailer",
-    location: "NH-48 checkpoint",
+    id: "asset-log-02",
+    name: "Fleet Heavy Trailer TR-441",
+    category: "Long-Haul Trailer",
+    fieldSector: "logistics",
+    location: "NH-48 Checkpoint Talegaon",
+    latitude: 18.7301,
+    longitude: 73.6811,
+    altitudeMeters: 590.0,
+    speedKmh: 68,
+    headingDegrees: 120,
+    batteryLevel: 88,
     custodyStatus: "in-transit",
+    geofenceZone: "NH-48 Freight Express Zone",
+    geofenceStatus: "inside",
+    geofenceRadiusMeters: 8000,
+    assignedPersonnel: "Vikram Singh",
+    assignedPersonnelRole: "Fleet Operator",
     trustScore: 88,
     lastSeen: "2026-09-04T06:31:00.000Z",
+    telemetryBreadcrumbs: JSON.stringify([
+      { lat: 18.7600, lng: 73.6400, time: "2026-09-04T06:05:00.000Z", speed: 70 },
+      { lat: 18.7450, lng: 73.6600, time: "2026-09-04T06:18:00.000Z", speed: 65 },
+      { lat: 18.7301, lng: 73.6811, time: "2026-09-04T06:31:00.000Z", speed: 68 },
+    ]),
+  },
+  {
+    id: "asset-log-03",
+    name: "Automated Forklift FL-208",
+    category: "Warehouse Robotics",
+    fieldSector: "logistics",
+    location: "Nashik Central Fulfillment Center",
+    latitude: 19.9975,
+    longitude: 73.7898,
+    altitudeMeters: 600.0,
+    speedKmh: 12,
+    headingDegrees: 270,
+    batteryLevel: 91,
+    custodyStatus: "secure",
+    geofenceZone: "Nashik Logistics Zone A",
+    geofenceStatus: "inside",
+    geofenceRadiusMeters: 800,
+    assignedPersonnel: "Priya Nair",
+    assignedPersonnelRole: "Warehouse Specialist",
+    trustScore: 92,
+    lastSeen: "2026-09-04T06:37:00.000Z",
+    telemetryBreadcrumbs: JSON.stringify([
+      { lat: 19.9970, lng: 73.7905, time: "2026-09-04T06:15:00.000Z", speed: 10 },
+      { lat: 19.9975, lng: 73.7898, time: "2026-09-04T06:37:00.000Z", speed: 12 },
+    ]),
+  },
+
+  // 🏥 Healthcare & Medical Operations
+  {
+    id: "asset-med-01",
+    name: "Mobile Advanced ICU Ambulance MED-01",
+    category: "Critical Care Transit",
+    fieldSector: "medical",
+    location: "AIIMS Trauma Corridor, New Delhi",
+    latitude: 28.5672,
+    longitude: 77.2100,
+    altitudeMeters: 215.0,
+    speedKmh: 62,
+    headingDegrees: 340,
+    batteryLevel: 95,
+    custodyStatus: "in-transit",
+    geofenceZone: "AIIMS Emergency Green Corridor",
+    geofenceStatus: "inside",
+    geofenceRadiusMeters: 10000,
+    assignedPersonnel: "Dr. Ananya Roy",
+    assignedPersonnelRole: "Healthcare & Medical Director",
+    trustScore: 99,
+    lastSeen: "2026-09-04T06:41:00.000Z",
+    telemetryBreadcrumbs: JSON.stringify([
+      { lat: 28.5300, lng: 77.2200, time: "2026-09-04T06:15:00.000Z", speed: 65 },
+      { lat: 28.5500, lng: 28.5500, time: "2026-09-04T06:28:00.000Z", speed: 60 },
+      { lat: 28.5672, lng: 77.2100, time: "2026-09-04T06:41:00.000Z", speed: 62 },
+    ]),
+  },
+  {
+    id: "asset-med-02",
+    name: "Cryo Vaccine Carrier VAX-99",
+    category: "Temperature-Controlled Transit",
+    fieldSector: "medical",
+    location: "Serum Institute Campus Gate 2, Pune",
+    latitude: 18.5089,
+    longitude: 73.9260,
+    altitudeMeters: 570.0,
+    speedKmh: 35,
+    headingDegrees: 185,
+    batteryLevel: 99,
+    custodyStatus: "in-transit",
+    geofenceZone: "State Bio-Safety Logistics Zone",
+    geofenceStatus: "inside",
+    geofenceRadiusMeters: 3500,
+    assignedPersonnel: "Dr. Ananya Roy",
+    assignedPersonnelRole: "Healthcare & Medical Director",
+    trustScore: 97,
+    lastSeen: "2026-09-04T06:36:00.000Z",
+    telemetryBreadcrumbs: JSON.stringify([
+      { lat: 18.5200, lng: 73.9200, time: "2026-09-04T06:10:00.000Z", speed: 38 },
+      { lat: 18.5089, lng: 73.9260, time: "2026-09-04T06:36:00.000Z", speed: 35 },
+    ]),
+  },
+  {
+    id: "asset-med-03",
+    name: "Portable Ultrasound & Diagnostic Kit US-33",
+    category: "Diagnostic Equipment",
+    fieldSector: "medical",
+    location: "Apollo Jubilee Hills Mobile Clinic, Hyderabad",
+    latitude: 17.4325,
+    longitude: 78.4071,
+    altitudeMeters: 540.0,
+    speedKmh: 0,
+    headingDegrees: 0,
+    batteryLevel: 82,
+    custodyStatus: "secure",
+    geofenceZone: "Hyderabad Mobile Clinic Zone",
+    geofenceStatus: "inside",
+    geofenceRadiusMeters: 1200,
+    assignedPersonnel: "Dr. Ananya Roy",
+    assignedPersonnelRole: "Medical Director",
+    trustScore: 95,
+    lastSeen: "2026-09-04T06:22:00.000Z",
+    telemetryBreadcrumbs: JSON.stringify([
+      { lat: 17.4320, lng: 78.4065, time: "2026-09-04T05:30:00.000Z", speed: 0 },
+      { lat: 17.4325, lng: 78.4071, time: "2026-09-04T06:22:00.000Z", speed: 0 },
+    ]),
+  },
+
+  // 💻 IT & Digital Infrastructure
+  {
+    id: "asset-it-01",
+    name: "Mobile Cryptographic HSM Node K-01",
+    category: "Cryptographic Hardware",
+    fieldSector: "it",
+    location: "Electronic City Phase 1 Secure Vault, Bengaluru",
+    latitude: 12.8452,
+    longitude: 77.6602,
+    altitudeMeters: 920.0,
+    speedKmh: 0,
+    headingDegrees: 0,
+    batteryLevel: 100,
+    custodyStatus: "secure",
+    geofenceZone: "Tech Park High Security Perimeter",
+    geofenceStatus: "inside",
+    geofenceRadiusMeters: 500,
+    assignedPersonnel: "Aarav Patel",
+    assignedPersonnelRole: "DevOps Engineer",
+    trustScore: 99,
+    lastSeen: "2026-09-04T06:42:00.000Z",
+    telemetryBreadcrumbs: JSON.stringify([
+      { lat: 12.8450, lng: 77.6600, time: "2026-09-04T05:00:00.000Z", speed: 0 },
+      { lat: 12.8452, lng: 77.6602, time: "2026-09-04T06:42:00.000Z", speed: 0 },
+    ]),
+  },
+  {
+    id: "asset-it-02",
+    name: "Biometric Field Kiosk Core-X",
+    category: "Identity Terminal",
+    fieldSector: "it",
+    location: "Whitefield Operations Center, Bengaluru",
+    latitude: 12.9698,
+    longitude: 77.7500,
+    altitudeMeters: 890.0,
+    speedKmh: 0,
+    headingDegrees: 90,
+    batteryLevel: 89,
+    custodyStatus: "secure",
+    geofenceZone: "Whitefield IT Campus Perimeter",
+    geofenceStatus: "inside",
+    geofenceRadiusMeters: 600,
+    assignedPersonnel: "Rahul Verma",
+    assignedPersonnelRole: "IT & Software Sector Lead",
+    trustScore: 96,
+    lastSeen: "2026-09-04T06:33:00.000Z",
+    telemetryBreadcrumbs: JSON.stringify([
+      { lat: 12.9695, lng: 77.7495, time: "2026-09-04T05:15:00.000Z", speed: 0 },
+      { lat: 12.9698, lng: 77.7500, time: "2026-09-04T06:33:00.000Z", speed: 0 },
+    ]),
   },
 ] as const;
+
 
 const seedActivity = [
   {
@@ -1053,17 +1305,41 @@ router.post("/workforce/onboard", async (req, res): Promise<void> => {
   // Add assigned assets if provided
   if (Array.isArray(assignedAssets) && assignedAssets.length > 0) {
     for (const assetName of assignedAssets) {
+      const assignedSector = department?.toLowerCase().includes("it") || department?.toLowerCase().includes("engineer")
+        ? "it"
+        : department?.toLowerCase().includes("field") || department?.toLowerCase().includes("construct")
+        ? "construction"
+        : department?.toLowerCase().includes("medic")
+        ? "medical"
+        : "logistics";
+
       inMemoryAssets.unshift({
         id: `asset-${randomUUID().slice(0, 8)}`,
         name: assetName,
         category: assetName.toLowerCase().includes("laptop") ? "IT Hardware" : assetName.toLowerCase().includes("mobile") ? "Telephony" : assetName.toLowerCase().includes("vehicle") ? "Fleet" : "Equipment",
+        fieldSector: assignedSector,
         location: `${organization} Hub (${name})`,
+        latitude: 18.5204 + (Math.random() - 0.5) * 0.04,
+        longitude: 73.8567 + (Math.random() - 0.5) * 0.04,
+        altitudeMeters: 550,
+        speedKmh: 0,
+        headingDegrees: 0,
+        batteryLevel: 98,
         custodyStatus: "secure",
+        geofenceZone: `${organization} Safe Zone`,
+        geofenceStatus: "inside",
+        geofenceRadiusMeters: 1000,
+        assignedPersonnel: name,
+        assignedPersonnelRole: role,
+        telemetryBreadcrumbs: JSON.stringify([
+          { lat: 18.5204, lng: 73.8567, time: now.toISOString(), speed: 0 },
+        ]),
         trustScore: 98,
         lastSeen: now,
       });
     }
   }
+
 
   const activityItem: PramaanxActivity = {
     id: `activity-${randomUUID()}`,
@@ -1095,22 +1371,244 @@ router.post("/workforce/onboard", async (req, res): Promise<void> => {
   });
 });
 
-router.get("/assets", async (_req, res): Promise<void> => {
+router.get("/assets", async (req, res): Promise<void> => {
   await initializePramaanxData();
+  const sector = (req.query.sector as string)?.toLowerCase();
+  const status = (req.query.status as string)?.toLowerCase();
+  const search = (req.query.search as string)?.toLowerCase();
+
+  let assets: PramaanxAsset[] = [];
   try {
     const result = await db
       .select()
       .from(pramaanxAssetsTable)
       .orderBy(desc(pramaanxAssetsTable.lastSeen));
     if (result.length > 0) {
-      res.json(ListAssetsResponse.parse(result));
-      return;
+      assets = result;
     }
   } catch (_err) {
     // In-memory demo fallback
   }
-  res.json(ListAssetsResponse.parse(inMemoryAssets));
+
+  if (assets.length === 0) {
+    assets = inMemoryAssets;
+  }
+
+  // Filter by sector
+  if (sector && sector !== "all") {
+    assets = assets.filter((a) => a.fieldSector.toLowerCase() === sector);
+  }
+
+  // Filter by status
+  if (status && status !== "all") {
+    assets = assets.filter((a) => a.custodyStatus.toLowerCase().includes(status));
+  }
+
+  // Filter by search
+  if (search) {
+    assets = assets.filter(
+      (a) =>
+        a.name.toLowerCase().includes(search) ||
+        a.category.toLowerCase().includes(search) ||
+        a.location.toLowerCase().includes(search) ||
+        a.assignedPersonnel.toLowerCase().includes(search)
+    );
+  }
+
+  res.json(ListAssetsResponse.parse(assets));
 });
+
+router.get("/assets/:id", async (req, res): Promise<void> => {
+  await initializePramaanxData();
+  const { id } = req.params;
+
+  let asset: PramaanxAsset | undefined;
+  try {
+    const [dbAsset] = await db
+      .select()
+      .from(pramaanxAssetsTable)
+      .where(eq(pramaanxAssetsTable.id, id));
+    asset = dbAsset;
+  } catch {}
+
+  if (!asset) {
+    asset = inMemoryAssets.find((a) => a.id === id);
+  }
+
+  if (!asset) {
+    res.status(404).json({ error: "Asset not found" });
+    return;
+  }
+
+  res.json(asset);
+});
+
+router.post("/assets/:id/ping", async (req, res): Promise<void> => {
+  await initializePramaanxData();
+  const { id } = req.params;
+  const now = new Date();
+
+  const asset = inMemoryAssets.find((a) => a.id === id);
+  if (!asset) {
+    res.status(404).json({ error: "Asset not found" });
+    return;
+  }
+
+  // Simulate satellite GPS telemetry update
+  const angleRad = (asset.headingDegrees * Math.PI) / 180;
+  const deltaKm = (asset.speedKmh > 0 ? asset.speedKmh : 25) * (15 / 3600);
+  const deltaLat = (deltaKm / 111) * Math.cos(angleRad) + (Math.random() - 0.5) * 0.001;
+  const deltaLng = (deltaKm / (111 * Math.cos((asset.latitude * Math.PI) / 180))) * Math.sin(angleRad) + (Math.random() - 0.5) * 0.001;
+
+  const newLat = Number((asset.latitude + deltaLat).toFixed(5));
+  const newLng = Number((asset.longitude + deltaLng).toFixed(5));
+  const newSpeed = asset.custodyStatus === "in-transit" ? Math.max(20, Math.min(85, Math.round(asset.speedKmh + (Math.random() * 8 - 4)))) : 0;
+  const newBattery = Math.max(15, asset.batteryLevel - (Math.random() > 0.8 ? 1 : 0));
+
+  let crumbs: Array<{ lat: number; lng: number; time: string; speed: number }> = [];
+  try {
+    crumbs = typeof asset.telemetryBreadcrumbs === "string" ? JSON.parse(asset.telemetryBreadcrumbs) : (asset.telemetryBreadcrumbs || []);
+  } catch {
+    crumbs = [];
+  }
+  crumbs.push({ lat: newLat, lng: newLng, time: now.toISOString(), speed: newSpeed });
+  if (crumbs.length > 20) crumbs.shift();
+
+  asset.latitude = newLat;
+  asset.longitude = newLng;
+  asset.speedKmh = newSpeed;
+  asset.batteryLevel = newBattery;
+  asset.lastSeen = now;
+  asset.telemetryBreadcrumbs = JSON.stringify(crumbs);
+
+  try {
+    await db
+      .update(pramaanxAssetsTable)
+      .set({
+        latitude: newLat,
+        longitude: newLng,
+        speedKmh: newSpeed,
+        batteryLevel: newBattery,
+        lastSeen: now,
+        telemetryBreadcrumbs: JSON.stringify(crumbs),
+      })
+      .where(eq(pramaanxAssetsTable.id, id));
+  } catch {}
+
+  res.json({ success: true, asset });
+});
+
+router.post("/assets/:id/lockdown", async (req, res): Promise<void> => {
+  await initializePramaanxData();
+  const { id } = req.params;
+  const now = new Date();
+
+  const asset = inMemoryAssets.find((a) => a.id === id);
+  if (!asset) {
+    res.status(404).json({ error: "Asset not found" });
+    return;
+  }
+
+  asset.speedKmh = 0;
+  asset.custodyStatus = "attention";
+  asset.geofenceStatus = "warning";
+  asset.lastSeen = now;
+
+  const activityItem: PramaanxActivity = {
+    id: `activity-${randomUUID()}`,
+    title: "Remote asset lockdown triggered",
+    description: `Emergency telemetry lockdown engaged for ${asset.name} (${asset.category}) at [${asset.latitude}, ${asset.longitude}]. Propulsion immobilized.`,
+    type: "asset",
+    actor: "SHREYASH (Super Admin)",
+    createdAt: now,
+  };
+  inMemoryActivity.unshift(activityItem);
+
+  try {
+    await db
+      .update(pramaanxAssetsTable)
+      .set({
+        speedKmh: 0,
+        custodyStatus: "attention",
+        geofenceStatus: "warning",
+        lastSeen: now,
+      })
+      .where(eq(pramaanxAssetsTable.id, id));
+    await db.insert(pramaanxActivityTable).values(activityItem);
+  } catch {}
+
+  res.json({ success: true, message: `Emergency lockdown engaged for ${asset.name}.`, asset });
+});
+
+router.post("/assets", async (req, res): Promise<void> => {
+  await initializePramaanxData();
+  const {
+    name,
+    category,
+    fieldSector = "logistics",
+    location,
+    latitude = 18.5204,
+    longitude = 73.8567,
+    altitudeMeters = 500,
+    speedKmh = 0,
+    headingDegrees = 0,
+    geofenceZone = "Designated Operational Zone",
+    geofenceRadiusMeters = 2000,
+    assignedPersonnel = "Operations Lead",
+    assignedPersonnelRole = "Field Staff",
+  } = req.body || {};
+
+  if (!name || !category || !location) {
+    res.status(400).json({ error: "Asset name, category, and location are required." });
+    return;
+  }
+
+  const now = new Date();
+  const newAsset: PramaanxAsset = {
+    id: `asset-${randomUUID().slice(0, 8)}`,
+    name,
+    category,
+    fieldSector,
+    location,
+    latitude: Number(latitude) || 18.5204,
+    longitude: Number(longitude) || 73.8567,
+    altitudeMeters: Number(altitudeMeters) || 500,
+    speedKmh: Number(speedKmh) || 0,
+    headingDegrees: Number(headingDegrees) || 0,
+    batteryLevel: 100,
+    custodyStatus: Number(speedKmh) > 0 ? "in-transit" : "secure",
+    geofenceZone,
+    geofenceStatus: "inside",
+    geofenceRadiusMeters: Number(geofenceRadiusMeters) || 2000,
+    assignedPersonnel,
+    assignedPersonnelRole,
+    telemetryBreadcrumbs: JSON.stringify([
+      { lat: Number(latitude) || 18.5204, lng: Number(longitude) || 73.8567, time: now.toISOString(), speed: Number(speedKmh) || 0 },
+    ]),
+    trustScore: 98,
+    lastSeen: now,
+  };
+
+  inMemoryAssets.unshift(newAsset);
+
+  const activityItem: PramaanxActivity = {
+    id: `activity-${randomUUID()}`,
+    title: "New field asset registered",
+    description: `${name} [${category} / ${String(fieldSector).toUpperCase()}] registered with GPS telemetry. Assigned to ${assignedPersonnel}.`,
+    type: "asset",
+    actor: "Fleet Command",
+    createdAt: now,
+  };
+  inMemoryActivity.unshift(activityItem);
+
+  try {
+    await db.insert(pramaanxAssetsTable).values(newAsset);
+    await db.insert(pramaanxActivityTable).values(activityItem);
+  } catch {}
+
+  res.status(201).json({ success: true, asset: newAsset });
+});
+
 
 router.get("/activity", async (req, res): Promise<void> => {
   await initializePramaanxData();

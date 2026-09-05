@@ -206,9 +206,23 @@ export const ListAssetsResponseItem = zod.object({
   "location": zod.string(),
   "custodyStatus": zod.string(),
   "trustScore": zod.number(),
-  "lastSeen": zod.coerce.date()
-})
+  "lastSeen": zod.coerce.date(),
+  "fieldSector": zod.string().optional(),
+  "latitude": zod.number().optional(),
+  "longitude": zod.number().optional(),
+  "altitudeMeters": zod.number().optional(),
+  "speedKmh": zod.number().optional(),
+  "headingDegrees": zod.number().optional(),
+  "batteryLevel": zod.number().optional(),
+  "geofenceZone": zod.string().optional(),
+  "geofenceStatus": zod.string().optional(),
+  "geofenceRadiusMeters": zod.number().optional(),
+  "assignedPersonnel": zod.string().optional(),
+  "assignedPersonnelRole": zod.string().optional(),
+  "telemetryBreadcrumbs": zod.any().optional(),
+}).passthrough()
 export const ListAssetsResponse = zod.array(ListAssetsResponseItem)
+
 
 
 /**

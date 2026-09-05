@@ -48,11 +48,25 @@ export const pramaanxAssetsTable = pgTable("pramaanx_assets", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   category: text("category").notNull(),
+  fieldSector: text("field_sector").notNull().default("logistics"),
   location: text("location").notNull(),
+  latitude: real("latitude").notNull().default(18.5204),
+  longitude: real("longitude").notNull().default(73.8567),
+  altitudeMeters: real("altitude_meters").notNull().default(500),
+  speedKmh: real("speed_kmh").notNull().default(0),
+  headingDegrees: real("heading_degrees").notNull().default(0),
+  batteryLevel: integer("battery_level").notNull().default(100),
   custodyStatus: text("custody_status").notNull(),
+  geofenceZone: text("geofence_zone").notNull().default("Designated Operational Area"),
+  geofenceStatus: text("geofence_status").notNull().default("inside"),
+  geofenceRadiusMeters: integer("geofence_radius_meters").notNull().default(2000),
+  assignedPersonnel: text("assigned_personnel").notNull().default("Unassigned"),
+  assignedPersonnelRole: text("assigned_personnel_role").notNull().default("Operations"),
+  telemetryBreadcrumbs: text("telemetry_breadcrumbs").notNull().default("[]"),
   trustScore: real("trust_score").notNull(),
   lastSeen: timestamp("last_seen", { withTimezone: true }).notNull(),
 });
+
 
 export const pramaanxActivityTable = pgTable("pramaanx_activity", {
   id: text("id").primaryKey(),

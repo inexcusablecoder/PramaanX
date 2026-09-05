@@ -14,4 +14,18 @@ export interface Asset {
   custodyStatus: string;
   trustScore: number;
   lastSeen: Date;
+  fieldSector?: string;
+  latitude?: number;
+  longitude?: number;
+  altitudeMeters?: number;
+  speedKmh?: number;
+  headingDegrees?: number;
+  batteryLevel?: number;
+  geofenceZone?: string;
+  geofenceStatus?: string;
+  geofenceRadiusMeters?: number;
+  assignedPersonnel?: string;
+  assignedPersonnelRole?: string;
+  telemetryBreadcrumbs?: any;
 }
+
